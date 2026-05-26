@@ -182,17 +182,6 @@ export default function CandidateProfilePage() {
     };
   }, [loading, profileLoading, me?.mustChangePassword]);
 
-  if (loading || !me || profileLoading) {
-    return (
-      <LoadingScreen
-        title="Loading profile..."
-        subtitle="Preparing your personal details"
-      />
-    );
-  }
-
-  /* ── drawer open helpers ── */
-
   /* OTP countdown timer */
   useEffect(() => {
     if (pwOtpCountdown <= 0) return;
@@ -204,6 +193,52 @@ export default function CandidateProfilePage() {
     }, 1000);
     return () => clearInterval(t);
   }, [pwOtpCountdown]);
+
+  /* OTP digit handlers for password change */
+  const handlePwOtpChange = useCallback(
+    (index: number, value: string) => {
+      const digit = value.replace(/\D/g, "").slice(-1);
+      const next = [...pwOtpDigits];
+      next[index] = digit;
+      setPwOtpDigits(next);
+      setPasswordMessage("");
+      if (digit && index < 5) pwOtpRefs.current[index + 1]?.focus();
+    },
+    [pwOtpDigits],
+  );
+
+  const handlePwOtpKeyDown = useCallback(
+    (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (e.key === "Backspace" && !pwOtpDigits[index] && index > 0) {
+        pwOtpRefs.current[index - 1]?.focus();
+      }
+    },
+    [pwOtpDigits],
+  );
+
+  const handlePwOtpPaste = useCallback(
+    (e: React.ClipboardEvent<HTMLInputElement>) => {
+      e.preventDefault();
+      const pasted = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6);
+      if (!pasted) return;
+      const next = ["", "", "", "", "", ""];
+      for (let i = 0; i < pasted.length; i++) next[i] = pasted[i];
+      setPwOtpDigits(next);
+      pwOtpRefs.current[Math.min(pasted.length, 5)]?.focus();
+    },
+    [],
+  );
+
+  if (loading || !me || profileLoading) {
+    return (
+      <LoadingScreen
+        title="Loading profile..."
+        subtitle="Preparing your personal details"
+      />
+    );
+  }
+
+  /* ── drawer open helpers ── */
 
   function openPasswordDrawer() {
     setNewPassword("");
@@ -278,41 +313,6 @@ export default function CandidateProfilePage() {
       setPwOtpSending(false);
     }
   }
-
-  /* OTP digit handlers for password change */
-  const handlePwOtpChange = useCallback(
-    (index: number, value: string) => {
-      const digit = value.replace(/\D/g, "").slice(-1);
-      const next = [...pwOtpDigits];
-      next[index] = digit;
-      setPwOtpDigits(next);
-      setPasswordMessage("");
-      if (digit && index < 5) pwOtpRefs.current[index + 1]?.focus();
-    },
-    [pwOtpDigits],
-  );
-
-  const handlePwOtpKeyDown = useCallback(
-    (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
-      if (e.key === "Backspace" && !pwOtpDigits[index] && index > 0) {
-        pwOtpRefs.current[index - 1]?.focus();
-      }
-    },
-    [pwOtpDigits],
-  );
-
-  const handlePwOtpPaste = useCallback(
-    (e: React.ClipboardEvent<HTMLInputElement>) => {
-      e.preventDefault();
-      const pasted = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6);
-      if (!pasted) return;
-      const next = ["", "", "", "", "", ""];
-      for (let i = 0; i < pasted.length; i++) next[i] = pasted[i];
-      setPwOtpDigits(next);
-      pwOtpRefs.current[Math.min(pasted.length, 5)]?.focus();
-    },
-    [],
-  );
 
   function formatPwCountdown(seconds: number) {
     const m = Math.floor(seconds / 60);
