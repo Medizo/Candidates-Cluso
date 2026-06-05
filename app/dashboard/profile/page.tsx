@@ -12,6 +12,8 @@ import {
   Timer,
   ArrowLeft,
   UserRound,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { PortalFrame } from "@/components/dashboard/PortalFrame";
 import { ProfileEditDrawer } from "@/components/dashboard/ProfileEditDrawer";
@@ -71,6 +73,7 @@ type DrawerSection =
   | { kind: "education"; index: number | "new" };
 
 const QUICK_LINKS = [
+  { id: "digilocker", label: "DigiLocker", icon: ShieldCheck },
   { id: "password", label: "Password", icon: KeyRound },
   { id: "skills", label: "Key Skills", icon: UserRound },
   { id: "employment", label: "Employment", icon: BriefcaseBusiness },
@@ -79,12 +82,18 @@ const QUICK_LINKS = [
 
 /* ── page ── */
 
+import Image from "next/image";
+import { DigiLockerCard, useDigiLockerStatus } from "@/components/dashboard/DigiLockerCard";
+
 export default function CandidateProfilePage() {
   const { me, loading, logout, refreshMe } = usePortalSession();
+  const { linked: digiLinked, loading: digiLoading } = useDigiLockerStatus();
 
   /* password state */
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [passwordMessage, setPasswordMessage] = useState("");
   const [changingPassword, setChangingPassword] = useState(false);
   const [highlightPasswordSection, setHighlightPasswordSection] = useState(false);
@@ -243,6 +252,8 @@ export default function CandidateProfilePage() {
   function openPasswordDrawer() {
     setNewPassword("");
     setConfirmPassword("");
+    setShowNewPassword(false);
+    setShowConfirmPassword(false);
     setPasswordMessage("");
     setPwOtpStep("idle");
     setPwOtpDigits(["", "", "", "", "", ""]);
@@ -530,11 +541,13 @@ export default function CandidateProfilePage() {
           {QUICK_LINKS.map((link) => {
             const hasAdd = link.id === "employment" || link.id === "education";
             return (
-              <button
+              <div
                 key={link.id}
-                type="button"
                 className="profile-quick-link"
+                role="button"
+                tabIndex={0}
                 onClick={() => scrollToSection(link.id)}
+                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") scrollToSection(link.id); }}
               >
                 <span>{link.label}</span>
                 {hasAdd ? (
@@ -553,13 +566,53 @@ export default function CandidateProfilePage() {
                     Add
                   </button>
                 ) : null}
-              </button>
+              </div>
             );
           })}
         </aside>
 
         {/* ── Summary Cards ── */}
         <div className="profile-cards-column">
+          {/* DigiLocker Verification Section */}
+          <section id="digilocker-section" className="profile-section-card">
+            <div className="profile-section-header">
+              <h3 className="profile-section-title">
+                <ShieldCheck size={18} />
+                DigiLocker Verification
+                {!digiLoading && (
+                  digiLinked ? (
+                    <span className="digilocker-verified-badge">✓ Verified</span>
+                  ) : (
+                    <span style={{ fontSize: "0.72rem", fontWeight: 600, color: "#dc2626", background: "#fef2f2", padding: "0.2rem 0.6rem", borderRadius: "999px", border: "1px solid #fecaca" }}>
+                      Not Verified
+                    </span>
+                  )
+                )}
+              </h3>
+            </div>
+            {!digiLoading && (
+              digiLinked ? (
+                <DigiLockerCard />
+              ) : (
+                <div style={{ padding: "1.25rem", display: "flex", flexDirection: "column", alignItems: "center", gap: "0.75rem", textAlign: "center" }}>
+                  <p className="profile-empty-state" style={{ margin: 0 }}>
+                    Verify your identity using DigiLocker to auto-fill your personal details from government records.
+                  </p>
+                  <a href="/api/digilocker/authorize" className="btn btn-digilocker">
+                    <Image
+                      src="/images/digilocker-logo.svg"
+                      alt="DigiLocker"
+                      width={20}
+                      height={20}
+                      className="digilocker-btn-logo"
+                    />
+                    Verify with DigiLocker
+                  </a>
+                </div>
+              )
+            )}
+          </section>
+
           {/* Password Card */}
           <section
             id="password-section"
@@ -915,30 +968,72 @@ export default function CandidateProfilePage() {
                   <label className="drawer-field-label" htmlFor="drawer-new-password">
                     New Password
                   </label>
-                  <input
-                    id="drawer-new-password"
-                    className="drawer-field-input"
-                    type="password"
-                    minLength={6}
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    required
-                  />
+                  <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
+                    <input
+                      id="drawer-new-password"
+                      className="drawer-field-input"
+                      style={{ paddingRight: "2.5rem", width: "100%" }}
+                      type={showNewPassword ? "text" : "password"}
+                      minLength={6}
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowNewPassword((prev) => !prev)}
+                      style={{
+                        position: "absolute",
+                        right: "0.75rem",
+                        background: "none",
+                        border: "none",
+                        color: "var(--ink-soft)",
+                        cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                      aria-label={showNewPassword ? "Hide password" : "Show password"}
+                    >
+                      {showNewPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
                 </div>
 
                 <div>
                   <label className="drawer-field-label" htmlFor="drawer-confirm-password">
                     Confirm New Password
                   </label>
-                  <input
-                    id="drawer-confirm-password"
-                    className="drawer-field-input"
-                    type="password"
-                    minLength={6}
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    required
-                  />
+                  <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
+                    <input
+                      id="drawer-confirm-password"
+                      className="drawer-field-input"
+                      style={{ paddingRight: "2.5rem", width: "100%" }}
+                      type={showConfirmPassword ? "text" : "password"}
+                      minLength={6}
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword((prev) => !prev)}
+                      style={{
+                        position: "absolute",
+                        right: "0.75rem",
+                        background: "none",
+                        border: "none",
+                        color: "var(--ink-soft)",
+                        cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                      aria-label={showConfirmPassword ? "Hide password" : "Show password"}
+                    >
+                      {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
                 </div>
 
                 {passwordMessage ? (

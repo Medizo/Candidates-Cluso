@@ -1,0 +1,288 @@
+import { NextRequest, NextResponse } from "next/server";
+import { connectMongo } from "@/lib/mongodb";
+import User from "@/lib/models/User";
+import { getCandidateAuthFromRequest } from "@/lib/auth";
+
+/**
+ * GET /api/digilocker/callback
+ *
+ * Handles the OAuth2 callback from DigiLocker:
+ * 1. Validates the `state` parameter (CSRF check)
+ * 2. Exchanges the authorization `code` for an access token (with PKCE code_verifier)
+ * 3. Extracts user details from the id_token JWT + token response
+ * 4. Saves the full profile to MongoDB on the User document
+ * 5. Redirects back to the dashboard
+ */
+function formatDOBToDDMMYYYY(dobStr: string): string {
+  if (!dobStr) return "";
+  const cleaned = dobStr.trim();
+  
+  // 1. Matches DD-MM-YYYY or DD/MM/YYYY
+  const dmYMatch = cleaned.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})$/);
+  if (dmYMatch) {
+    const day = dmYMatch[1].padStart(2, "0");
+    const month = dmYMatch[2].padStart(2, "0");
+    const year = dmYMatch[3];
+    return `${day}-${month}-${year}`;
+  }
+
+  // 2. Matches YYYY-MM-DD or YYYY/MM/DD
+  const YmdMatch = cleaned.match(/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})$/);
+  if (YmdMatch) {
+    const year = YmdMatch[1];
+    const month = YmdMatch[2].padStart(2, "0");
+    const day = YmdMatch[3].padStart(2, "0");
+    return `${day}-${month}-${year}`;
+  }
+
+  // 3. Matches 8 consecutive digits
+  if (/^\d{8}$/.test(cleaned)) {
+    const part1 = cleaned.substring(0, 4);
+    const yearNum = parseInt(part1, 10);
+    if (yearNum >= 1900 && yearNum <= 2100) {
+      const year = part1;
+      const month = cleaned.substring(4, 6);
+      const day = cleaned.substring(6, 8);
+      return `${day}-${month}-${year}`;
+    } else {
+      const day = cleaned.substring(0, 2);
+      const month = cleaned.substring(2, 4);
+      const year = cleaned.substring(4, 8);
+      return `${day}-${month}-${year}`;
+    }
+  }
+
+  return cleaned;
+}
+
+export async function GET(request: NextRequest) {
+  const baseUrl = process.env.DIGILOCKER_BASE_URL ?? "https://digilocker.meripehchaan.gov.in";
+  const clientId = process.env.DIGILOCKER_CLIENT_ID ?? "";
+  const clientSecret = process.env.DIGILOCKER_CLIENT_SECRET ?? "";
+  const redirectUri = process.env.DIGILOCKER_REDIRECT_URI ?? "";
+
+  const { searchParams } = new URL(request.url);
+  const code = searchParams.get("code");
+  const state = searchParams.get("state");
+  const error = searchParams.get("error");
+  const errorDesc = searchParams.get("error_description");
+
+  // If user denied access or DigiLocker returned an error
+  if (error) {
+    const msg = errorDesc || error || "Authorization denied";
+    return NextResponse.redirect(
+      new URL(`/dashboard?digilocker=error&message=${encodeURIComponent(msg)}`, request.url),
+    );
+  }
+
+  if (!code || !state) {
+    return NextResponse.redirect(
+      new URL("/dashboard?digilocker=error&message=Missing+authorization+code", request.url),
+    );
+  }
+
+  // Validate state against cookie
+  const storedState = request.cookies.get("digilocker_state")?.value;
+  if (!storedState || storedState !== state) {
+    return NextResponse.redirect(
+      new URL("/dashboard?digilocker=error&message=Invalid+state+parameter", request.url),
+    );
+  }
+
+  // Get the logged-in candidate
+  const auth = await getCandidateAuthFromRequest(request);
+  if (!auth || auth.role !== "candidate") {
+    return NextResponse.redirect(
+      new URL("/dashboard?digilocker=error&message=Not+logged+in", request.url),
+    );
+  }
+
+  // Retrieve PKCE code_verifier from cookie
+  const codeVerifier = request.cookies.get("digilocker_code_verifier")?.value ?? "";
+
+  try {
+    // ── Step 1: Exchange code for token (v2 endpoint + PKCE) ──
+    const tokenParams = new URLSearchParams({
+      code,
+      grant_type: "authorization_code",
+      client_id: clientId,
+      client_secret: clientSecret,
+      redirect_uri: redirectUri,
+      code_verifier: codeVerifier,
+    });
+
+    const tokenResponse = await fetch(`${baseUrl}/public/oauth2/2/token`, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: tokenParams.toString(),
+    });
+
+    if (!tokenResponse.ok) {
+      const tokenError = await tokenResponse.text();
+      console.error("[DigiLocker] Token exchange failed:", tokenResponse.status, tokenError);
+      return NextResponse.redirect(
+        new URL("/dashboard?digilocker=error&message=Token+exchange+failed", request.url),
+      );
+    }
+
+    const tokenData = await tokenResponse.json();
+    const accessToken = tokenData.access_token;
+
+    if (!accessToken) {
+      console.error("[DigiLocker] No access_token in response:", tokenData);
+      return NextResponse.redirect(
+        new URL("/dashboard?digilocker=error&message=No+access+token+received", request.url),
+      );
+    }
+
+    // ── Step 2: Extract user info from all sources ──
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let user: Record<string, any> = {};
+
+    // Source 1: Decode the id_token JWT (contains the richest claims)
+    if (tokenData.id_token) {
+      try {
+        const parts = tokenData.id_token.split(".");
+        if (parts.length === 3) {
+          const payload = JSON.parse(
+            Buffer.from(parts[1], "base64url").toString(),
+          );
+          console.log("[DigiLocker] id_token claims:", JSON.stringify(payload, null, 2));
+          user = {
+            name: payload.given_name || payload.name || payload.preferred_username || "",
+            dob: payload.birthdate || payload.dob || "",
+            gender: payload.gender || "",
+            email: payload.email || "",
+            mobile: payload.phone_number || payload.mobile || "",
+            maskedAadhaar: payload.masked_aadhaar || "",
+            digilockerid: payload.digilockerid || payload.sub || "",
+            referenceKey: payload.reference_key || "",
+            panNumber: payload.pan_number || "",
+            drivingLicence: payload.driving_licence || "",
+            preferredUsername: payload.preferred_username || "",
+          };
+        }
+      } catch (jwtErr) {
+        console.error("[DigiLocker] Could not decode id_token:", jwtErr);
+      }
+    }
+
+    // Source 2: Token response top-level fields
+    if (tokenData.name) user.name = tokenData.name;
+    if (tokenData.dob) user.dob = tokenData.dob;
+    if (tokenData.gender) user.gender = tokenData.gender;
+    if (tokenData.email) user.email = tokenData.email;
+    if (tokenData.mobile) user.mobile = tokenData.mobile;
+    if (tokenData.digilockerid) user.digilockerid = tokenData.digilockerid;
+    if (tokenData.eaadhaar) user.eaadhaar = tokenData.eaadhaar;
+    if (tokenData.reference_key) user.referenceKey = tokenData.reference_key;
+
+    // Source 3: Fetch profile picture
+    let photo = "";
+    if (tokenData.picture) {
+      photo = tokenData.picture;
+    }
+
+    // Source 4: Try the /user API (may fail with openid-only scope)
+    try {
+      const userResponse = await fetch(`${baseUrl}/public/oauth2/1/user`, {
+        method: "GET",
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      if (userResponse.ok) {
+        const apiUser = await userResponse.json();
+        console.log("[DigiLocker] User API response:", JSON.stringify(apiUser, null, 2));
+        if (apiUser.name) user.name = apiUser.name;
+        if (apiUser.dob || apiUser.birthdate) user.dob = apiUser.dob || apiUser.birthdate;
+        if (apiUser.gender) user.gender = apiUser.gender;
+        if (apiUser.email) user.email = apiUser.email;
+        if (apiUser.mobile || apiUser.phone_number) user.mobile = apiUser.mobile || apiUser.phone_number;
+        if (apiUser.digilockerid) user.digilockerid = apiUser.digilockerid;
+        if (apiUser.photo || apiUser.picture) photo = apiUser.photo || apiUser.picture;
+      } else {
+        console.log("[DigiLocker] User API failed (expected with openid scope):", userResponse.status);
+      }
+    } catch (userErr) {
+      console.log("[DigiLocker] User API error:", userErr);
+    }
+
+    // Source 5: Fetch issued documents
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let documents: any[] = [];
+    try {
+      const docsResponse = await fetch(`${baseUrl}/public/oauth2/2/files/issued`, {
+        method: "GET",
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      if (docsResponse.ok) {
+        const docsData = await docsResponse.json();
+        if (docsData.items && Array.isArray(docsData.items)) {
+          documents = docsData.items.map((doc: Record<string, unknown>) => ({
+            name: doc.name || "",
+            doctype: doc.doctype || "",
+            description: doc.description || "",
+            issuer: doc.issuer || "",
+            issuerId: doc.issuerid || "",
+            uri: doc.uri || "",
+            date: doc.date || "",
+          }));
+          console.log(`[DigiLocker] Fetched ${documents.length} issued documents`);
+        }
+      }
+    } catch (docErr) {
+      console.log("[DigiLocker] Documents API error:", docErr);
+    }
+
+    // ── Step 3: Save to MongoDB ──
+    const digilockerProfile = {
+      verified: true,
+      name: user.name || "",
+      dob: formatDOBToDDMMYYYY(user.dob || ""),
+      gender: user.gender || "",
+      email: user.email || "",
+      mobile: user.mobile || "",
+      maskedAadhaar: user.maskedAadhaar || "",
+      digilockerid: user.digilockerid || "",
+      referenceKey: user.referenceKey || "",
+      eaadhaar: user.eaadhaar || "",
+      photo: photo || "",
+      panNumber: user.panNumber || "",
+      drivingLicence: user.drivingLicence || "",
+      preferredUsername: user.preferredUsername || "",
+      documents,
+      linkedAt: new Date(),
+    };
+
+    console.log("[DigiLocker] Saving profile for user:", auth.userId);
+    console.log("[DigiLocker] Profile fields:", {
+      ...digilockerProfile,
+      photo: photo ? `(${photo.length} chars)` : "(empty)",
+    });
+
+    await connectMongo();
+    await User.updateOne(
+      { _id: auth.userId },
+      { $set: { digilockerProfile } },
+    );
+
+    // ── Step 4: Redirect back to dashboard ──
+    const response = NextResponse.redirect(
+      new URL("/dashboard?digilocker=success", request.url),
+    );
+
+    // Clear the OAuth flow cookies
+    response.cookies.delete("digilocker_state");
+    response.cookies.delete("digilocker_code_verifier");
+    response.cookies.delete("digilocker_nonce");
+    // Also clear old cookie-based profile if it exists
+    response.cookies.delete("digilocker_profile");
+    response.cookies.delete("digilocker_token");
+
+    return response;
+  } catch (err) {
+    console.error("[DigiLocker] Callback error:", err);
+    return NextResponse.redirect(
+      new URL("/dashboard?digilocker=error&message=Internal+server+error", request.url),
+    );
+  }
+}

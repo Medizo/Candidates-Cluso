@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import Image from "next/image";
 import Link from "next/link";
@@ -22,10 +22,15 @@ import {
   ScanEye,
   Sliders,
   BellRing,
+  Sun,
+  Moon,
+  ChevronDown,
+  KeyRound,
   type LucideIcon,
 } from "lucide-react";
 import { ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { PortalUser, RequestItem } from "@/lib/types";
+import { useTheme } from "@/components/ThemeProvider";
 
 type PortalFrameProps = {
   me: PortalUser;
@@ -182,11 +187,28 @@ function isNavActive(pathname: string, href: string) {
   return pathname.startsWith(href);
 }
 
+function ThemeToggleButton() {
+  const { theme, toggleTheme } = useTheme();
+
+  return (
+    <button
+      type="button"
+      onClick={toggleTheme}
+      aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+      className="theme-toggle-btn"
+    >
+      {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
+    </button>
+  );
+}
+
 export function PortalFrame({ me, onLogout, title, subtitle, children }: PortalFrameProps) {
   const pathname = usePathname();
   const router = useRouter();
   const notificationWrapRef = useRef<HTMLDivElement | null>(null);
+  const profileMenuRef = useRef<HTMLDivElement | null>(null);
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const [clearedNotificationIds, setClearedNotificationIds] = useState<string[]>([]);
 
@@ -205,6 +227,7 @@ export function PortalFrame({ me, onLogout, title, subtitle, children }: PortalF
 
   const notifications = useMemo<NotificationItem[]>(() => {
     return (requestsQuery.data ?? [])
+      .filter((item) => item.candidateFormStatus === "pending")
       .map((item) => {
         const baseTimestamp = item.updatedAt ?? item.createdAt;
         const parsedCreatedAt = Date.parse(baseTimestamp);
@@ -212,9 +235,7 @@ export function PortalFrame({ me, onLogout, title, subtitle, children }: PortalF
         const content = getCandidateNotificationContent(item);
         const requiresCorrection =
           item.status === "rejected" && item.candidateFormStatus === "pending";
-        const targetHref = requiresCorrection
-          ? `/dashboard/orders?requestId=${encodeURIComponent(item._id)}`
-          : `/dashboard/requests?requestId=${encodeURIComponent(item._id)}`;
+        const targetHref = `/dashboard/orders?requestId=${encodeURIComponent(item._id)}`;
 
         return {
           id: `${item._id}:${item.status}:${item.candidateFormStatus}:${item.rejectionNote}:${baseTimestamp}`,
@@ -299,6 +320,37 @@ export function PortalFrame({ me, onLogout, title, subtitle, children }: PortalF
       document.removeEventListener("keydown", handleEscape);
     };
   }, [isNotificationOpen]);
+
+  useEffect(() => {
+    if (!isProfileMenuOpen) {
+      return;
+    }
+
+    function handleOutsideClick(event: MouseEvent) {
+      const target = event.target;
+      if (!(target instanceof Node)) {
+        return;
+      }
+
+      if (!profileMenuRef.current?.contains(target)) {
+        setIsProfileMenuOpen(false);
+      }
+    }
+
+    function handleEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setIsProfileMenuOpen(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handleOutsideClick);
+    document.addEventListener("keydown", handleEscape);
+
+    return () => {
+      document.removeEventListener("mousedown", handleOutsideClick);
+      document.removeEventListener("keydown", handleEscape);
+    };
+  }, [isProfileMenuOpen]);
 
   const clearedSet = useMemo(() => new Set(clearedNotificationIds), [clearedNotificationIds]);
 
@@ -426,15 +478,155 @@ export function PortalFrame({ me, onLogout, title, subtitle, children }: PortalF
             <div style={{ display: "grid", gap: "0.15rem" }}>
               <h1 className="admin-topbar-title">{title || "Candidate Panel"}</h1>
               {subtitle ? (
-                <p style={{ margin: 0, color: "#6B7A90", fontSize: "0.85rem" }}>{subtitle}</p>
+                <p style={{ margin: 0, color: "var(--ink-soft)", fontSize: "0.85rem" }}>{subtitle}</p>
               ) : null}
             </div>
           </div>
           <div className="account-actions-wrap">
-            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontWeight: 500 }}>
-              <User size={18} />
-              {me.name}
+            <div ref={profileMenuRef} style={{ position: "relative" }}>
+              <button
+                type="button"
+                onClick={() => setIsProfileMenuOpen((prev) => !prev)}
+                aria-expanded={isProfileMenuOpen}
+                aria-haspopup="menu"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "0.4rem",
+                  fontWeight: 600,
+                  fontSize: "0.95rem",
+                  background: "transparent",
+                  border: "none",
+                  color: "var(--ink)",
+                  cursor: "pointer",
+                  padding: "0.5rem 0.75rem",
+                  borderRadius: "8px",
+                  transition: "background 0.2s, color 0.2s",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = "var(--brand-light)";
+                  e.currentTarget.style.color = "var(--brand)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = "transparent";
+                  e.currentTarget.style.color = "var(--ink)";
+                }}
+              >
+                <User size={17} />
+                <span>{me.name}</span>
+                <ChevronDown size={14} style={{ opacity: 0.8, transform: isProfileMenuOpen ? "rotate(180deg)" : "none", transition: "transform 0.2s" }} />
+              </button>
+
+              {isProfileMenuOpen ? (
+                <div
+                  role="menu"
+                  style={{
+                    position: "absolute",
+                    top: "calc(100% + 0.5rem)",
+                    right: 0,
+                    width: "210px",
+                    border: "1px solid var(--border-color)",
+                    borderRadius: "12px",
+                    background: "var(--surface)",
+                    boxShadow: "0 10px 25px rgba(0, 0, 0, 0.15)",
+                    zIndex: 35,
+                    padding: "0.4rem",
+                    display: "grid",
+                    gap: "0.2rem",
+                  }}
+                >
+                  <Link
+                    href="/dashboard/profile"
+                    onClick={() => setIsProfileMenuOpen(false)}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "0.6rem",
+                      padding: "0.6rem 0.85rem",
+                      borderRadius: "8px",
+                      fontSize: "0.88rem",
+                      fontWeight: 500,
+                      color: "var(--ink)",
+                      transition: "background 0.2s, color 0.2s",
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = "var(--brand-light)";
+                      e.currentTarget.style.color = "var(--brand)";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = "transparent";
+                      e.currentTarget.style.color = "var(--ink)";
+                    }}
+                  >
+                    <User size={15} />
+                    <span>My Profile</span>
+                  </Link>
+
+                  <Link
+                    href="/dashboard/profile?focus=password-change"
+                    onClick={() => setIsProfileMenuOpen(false)}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "0.6rem",
+                      padding: "0.6rem 0.85rem",
+                      borderRadius: "8px",
+                      fontSize: "0.88rem",
+                      fontWeight: 500,
+                      color: "var(--ink)",
+                      transition: "background 0.2s, color 0.2s",
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = "var(--brand-light)";
+                      e.currentTarget.style.color = "var(--brand)";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = "transparent";
+                      e.currentTarget.style.color = "var(--ink)";
+                    }}
+                  >
+                    <KeyRound size={15} />
+                    <span>Change Password</span>
+                  </Link>
+
+                  <div style={{ height: "1px", background: "var(--border-color)", margin: "0.25rem 0" }} />
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsProfileMenuOpen(false);
+                      onLogout();
+                    }}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "0.6rem",
+                      width: "100%",
+                      padding: "0.6rem 0.85rem",
+                      borderRadius: "8px",
+                      fontSize: "0.88rem",
+                      fontWeight: 600,
+                      color: "var(--danger-text)",
+                      background: "transparent",
+                      border: "none",
+                      textAlign: "left",
+                      cursor: "pointer",
+                      transition: "background 0.2s, color 0.2s",
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = "rgba(220, 38, 38, 0.1)";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = "transparent";
+                    }}
+                  >
+                    <LogOut size={15} />
+                    <span>Sign out</span>
+                  </button>
+                </div>
+              ) : null}
             </div>
+            <ThemeToggleButton />
             <div ref={notificationWrapRef} style={{ position: "relative" }}>
               <button
                 type="button"
@@ -450,10 +642,11 @@ export function PortalFrame({ me, onLogout, title, subtitle, children }: PortalF
                   width: "2.2rem",
                   height: "2.2rem",
                   borderRadius: "999px",
-                  border: "1px solid #D7DDE5",
-                  background: "#FFFFFF",
-                  color: "#2D405E",
+                  border: "1px solid var(--border-color)",
+                  background: "var(--surface)",
+                  color: "var(--ink)",
                   cursor: "pointer",
+                  transition: "background 0.2s, border-color 0.2s, color 0.2s",
                 }}
               >
                 <Bell size={16} />
@@ -492,10 +685,10 @@ export function PortalFrame({ me, onLogout, title, subtitle, children }: PortalF
                     width: "min(24rem, calc(100vw - 2rem))",
                     maxHeight: "22rem",
                     overflow: "hidden",
-                    border: "1px solid #D7DDE5",
+                    border: "1px solid var(--border-color)",
                     borderRadius: "12px",
-                    background: "#FFFFFF",
-                    boxShadow: "0 14px 30px rgba(45, 64, 94, 0.18)",
+                    background: "var(--surface)",
+                    boxShadow: "0 14px 30px rgba(0, 0, 0, 0.18)",
                     zIndex: 30,
                     display: "grid",
                     gridTemplateRows: "auto 1fr",
@@ -507,10 +700,10 @@ export function PortalFrame({ me, onLogout, title, subtitle, children }: PortalF
                       alignItems: "center",
                       justifyContent: "space-between",
                       padding: "0.7rem 0.85rem",
-                      borderBottom: "1px solid #E6ECF3",
+                      borderBottom: "1px solid var(--border-color)",
                     }}
                   >
-                    <strong style={{ color: "#2D405E" }}>Notifications</strong>
+                    <strong style={{ color: "var(--ink)" }}>Notifications</strong>
                     {unreadNotifications.length > 0 ? (
                       <button
                         type="button"
@@ -518,7 +711,7 @@ export function PortalFrame({ me, onLogout, title, subtitle, children }: PortalF
                         style={{
                           border: "none",
                           background: "transparent",
-                          color: "#2D405E",
+                          color: "var(--ink)",
                           cursor: "pointer",
                           fontWeight: 600,
                           display: "inline-flex",
@@ -534,9 +727,9 @@ export function PortalFrame({ me, onLogout, title, subtitle, children }: PortalF
 
                   <div style={{ overflowY: "auto", padding: "0.75rem", display: "grid", gap: "0.6rem" }}>
                     {requestsQuery.isLoading ? (
-                      <p style={{ margin: 0, color: "#6B7A90" }}>Loading activity...</p>
+                      <p style={{ margin: 0, color: "var(--ink-soft)" }}>Loading activity...</p>
                     ) : unreadNotifications.length === 0 ? (
-                      <p style={{ margin: 0, color: "#6B7A90" }}>No new activity.</p>
+                      <p style={{ margin: 0, color: "var(--ink-soft)" }}>No new activity.</p>
                     ) : (
                       unreadNotifications.map((notification) => {
                         const tone =
@@ -568,7 +761,7 @@ export function PortalFrame({ me, onLogout, title, subtitle, children }: PortalF
                                 gap: "0.5rem",
                               }}
                             >
-                              <strong style={{ color: "#2D405E", fontSize: "0.9rem" }}>
+                              <strong style={{ color: "var(--ink)", fontSize: "0.9rem" }}>
                                 {notification.title}
                               </strong>
                               <button
@@ -577,7 +770,7 @@ export function PortalFrame({ me, onLogout, title, subtitle, children }: PortalF
                                 style={{
                                   border: "none",
                                   background: "transparent",
-                                  color: "#2D405E",
+                                  color: "var(--ink)",
                                   cursor: "pointer",
                                   fontSize: "0.8rem",
                                   fontWeight: 600,
@@ -601,11 +794,11 @@ export function PortalFrame({ me, onLogout, title, subtitle, children }: PortalF
                                 color: "inherit",
                               }}
                             >
-                              <span style={{ color: "#44536A", fontSize: "0.84rem" }}>{notification.detail}</span>
-                              <span style={{ color: "#2D5F99", fontSize: "0.78rem", fontWeight: 700 }}>
+                              <span style={{ color: "var(--ink-soft)", fontSize: "0.84rem" }}>{notification.detail}</span>
+                              <span style={{ color: "var(--brand)", fontSize: "0.78rem", fontWeight: 700 }}>
                                 {notification.actionLabel}
                               </span>
-                              <span style={{ color: "#667892", fontSize: "0.77rem" }}>
+                              <span style={{ color: "var(--ink-soft)", fontSize: "0.77rem" }}>
                                 {notification.createdAtMs > 0
                                   ? new Date(notification.createdAtMs).toLocaleString()
                                   : "Unknown time"}
@@ -619,9 +812,6 @@ export function PortalFrame({ me, onLogout, title, subtitle, children }: PortalF
                 </div>
               ) : null}
             </div>
-            <button onClick={onLogout} className="logout-btn">
-              <LogOut size={16} /> Sign out
-            </button>
           </div>
         </header>
         <div className="portal-shell">

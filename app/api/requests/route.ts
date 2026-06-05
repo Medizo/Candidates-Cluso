@@ -267,6 +267,7 @@ type NormalizedServiceFormField = {
   allowNotApplicable: boolean;
   notApplicableText: string;
   copyFromPersonalDetailsFieldKey: string;
+  copyFromDigiLockerFieldKey: string;
   previewWidth: PreviewFieldWidth;
   dropdownOptions: string[];
 };
@@ -798,6 +799,7 @@ function createSystemLocationField(
     allowNotApplicable: false,
     notApplicableText: "Not Applicable",
     copyFromPersonalDetailsFieldKey: "",
+    copyFromDigiLockerFieldKey: "",
     previewWidth: config.previewWidth,
     dropdownOptions:
       locationType === "country"
@@ -855,6 +857,7 @@ function ensureSystemLocationFields(
       allowNotApplicable: false,
       notApplicableText: "Not Applicable",
       copyFromPersonalDetailsFieldKey: "",
+      copyFromDigiLockerFieldKey: "",
       previewWidth: config.previewWidth,
       dropdownOptions:
         systemFieldType === "country"
@@ -1046,6 +1049,7 @@ function expandServiceFormFields(
       allowNotApplicable?: unknown;
       notApplicableText?: unknown;
       copyFromPersonalDetailsFieldKey?: unknown;
+      copyFromDigiLockerFieldKey?: unknown;
       previewWidth?: unknown;
     };
 
@@ -1099,6 +1103,7 @@ function expandServiceFormFields(
           allowNotApplicable,
           notApplicableText,
           copyFromPersonalDetailsFieldKey: "",
+          copyFromDigiLockerFieldKey: "",
           previewWidth,
           dropdownOptions:
             subFieldType === "dropdown"
@@ -1139,6 +1144,12 @@ function expandServiceFormFields(
           ? ""
           : normalizePersonalDetailsSourceFieldKey(
               field.copyFromPersonalDetailsFieldKey,
+            ),
+      copyFromDigiLockerFieldKey:
+        fieldType === "file"
+          ? ""
+          : normalizePersonalDetailsSourceFieldKey(
+              field.copyFromDigiLockerFieldKey,
             ),
       previewWidth: normalizePreviewWidth(field.previewWidth, fieldType),
       dropdownOptions:
@@ -1315,6 +1326,7 @@ export async function GET(req: NextRequest) {
           false,
         ),
       };
+
 
     const serviceForms = [
       personalDetailsForm,

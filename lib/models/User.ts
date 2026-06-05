@@ -66,6 +66,37 @@ const UserSchema = new Schema(
         default: [],
       },
     },
+    digilockerProfile: {
+      verified: { type: Boolean, default: false },
+      name: { type: String, default: "" },
+      dob: { type: String, default: "" },
+      gender: { type: String, default: "" },
+      email: { type: String, default: "" },
+      mobile: { type: String, default: "" },
+      maskedAadhaar: { type: String, default: "" },
+      digilockerid: { type: String, default: "" },
+      referenceKey: { type: String, default: "" },
+      eaadhaar: { type: String, default: "" },
+      photo: { type: String, default: "" },
+      panNumber: { type: String, default: "" },
+      drivingLicence: { type: String, default: "" },
+      preferredUsername: { type: String, default: "" },
+      documents: {
+        type: [
+          {
+            name: { type: String, default: "" },
+            doctype: { type: String, default: "" },
+            description: { type: String, default: "" },
+            issuer: { type: String, default: "" },
+            issuerId: { type: String, default: "" },
+            uri: { type: String, default: "" },
+            date: { type: String, default: "" },
+          },
+        ],
+        default: [],
+      },
+      linkedAt: { type: Date, default: null },
+    },
     selectedServices: [
       {
         serviceId: {
@@ -99,6 +130,7 @@ const hasCandidateRole =
 const hasCreatedByDelegatePath = Boolean(models.User?.schema.path("createdByDelegate"));
 const hasMustChangePasswordPath = Boolean(models.User?.schema.path("mustChangePassword"));
 const hasCandidateProfilePath = Boolean(models.User?.schema.path("candidateProfile"));
+const hasDigilockerProfilePath = Boolean(models.User?.schema.path("digilockerProfile"));
 const hasCountryRatesPath = Boolean(models.User?.schema.path("selectedServices.countryRates"));
 
 if (
@@ -109,6 +141,7 @@ if (
     !hasCreatedByDelegatePath ||
     !hasMustChangePasswordPath ||
     !hasCandidateProfilePath ||
+    !hasDigilockerProfilePath ||
     !hasCountryRatesPath)
 ) {
   delete models.User;

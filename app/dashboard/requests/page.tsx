@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useState } from "react";
-import { ListChecks, Search } from "lucide-react";
+import { ChevronDown, ListChecks, Search } from "lucide-react";
 import { PortalFrame } from "@/components/dashboard/PortalFrame";
 import { BlockCard } from "@/components/ui/blocks";
 import { LoadingScreen } from "@/components/ui/LoadingScreen";
@@ -213,6 +213,14 @@ function RequestsPageContent() {
   const [searchText, setSearchText] = useState("");
   const [highlightedRequestId, setHighlightedRequestId] = useState("");
   const focusRequestId = searchParams.get("requestId")?.trim() ?? "";
+  const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
+
+  const toggleSection = (sectionKey: string) => {
+    setCollapsedSections((prev) => ({
+      ...prev,
+      [sectionKey]: !(prev[sectionKey] ?? true),
+    }));
+  };
 
   useEffect(() => {
     if (!me) {
@@ -462,39 +470,55 @@ function RequestsPageContent() {
                         sortCandidateResponsesForDisplay(item.candidateFormResponses).flatMap(
                           (serviceResponse) => buildServiceInstancesForHistory(serviceResponse),
                         ),
-                      ).map((serviceResponse, serviceResponseIndex) => (
-                        <div
-                          key={`${item._id}-${serviceResponse.serviceId}-${serviceResponse.serviceEntryIndex ?? 1}-${serviceResponseIndex}`}
-                          className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm rounded-lg overflow-hidden"
-                        >
-                          <div className="bg-gray-50 dark:bg-gray-900/50 px-4 py-3 border-b border-gray-200 dark:border-gray-700 font-semibold text-sm text-gray-900 dark:text-white">
-                            {serviceResponse.displayServiceName}
+                      ).map((serviceResponse, serviceResponseIndex) => {
+                        const sectionKey = `${item._id}-${serviceResponse.serviceId}-${serviceResponse.serviceEntryIndex ?? 1}-${serviceResponseIndex}`;
+                        const isCollapsed = collapsedSections[sectionKey] ?? true;
+
+                        return (
+                          <div
+                            key={sectionKey}
+                            className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm rounded-lg overflow-hidden"
+                          >
+                            <div
+                              onClick={() => toggleSection(sectionKey)}
+                              className="bg-gray-50 dark:bg-gray-900/50 px-4 py-3 border-b border-gray-200 dark:border-gray-700 font-semibold text-sm text-gray-900 dark:text-white flex items-center justify-between cursor-pointer select-none hover:bg-gray-100 dark:hover:bg-gray-900/80 transition-colors"
+                            >
+                              <span>{serviceResponse.displayServiceName}</span>
+                              <ChevronDown
+                                size={16}
+                                className={`text-gray-500 transition-transform duration-200 ${
+                                  isCollapsed ? "" : "transform rotate-180"
+                                }`}
+                              />
+                            </div>
+                            {!isCollapsed && (
+                              <div className="px-4 py-3 space-y-3 divide-y divide-gray-100 dark:divide-gray-700/50">
+                                {serviceResponse.answers.map((answer, index) => {
+                                  return (
+                                    <div key={`${serviceResponse.serviceId}-${index}`} className="pt-3 first:pt-0">
+                                      <span className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">{answer.question}</span>
+                                      <div className="text-sm text-gray-900 dark:text-gray-200 text-sm">
+                                        {answer.fieldType === "file" && answer.fileData ? (
+                                          <a
+                                            href={answer.fileData}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 font-medium"
+                                          >
+                                            📄 {answer.fileName || "Open attachment"}
+                                          </a>
+                                        ) : (
+                                          answer.value || <span className="text-gray-400 italic">No answer</span>
+                                        )}
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
                           </div>
-                          <div className="px-4 py-3 space-y-3 divide-y divide-gray-100 dark:divide-gray-700/50">
-                            {serviceResponse.answers.map((answer, index) => {
-                              return (
-                                <div key={`${serviceResponse.serviceId}-${index}`} className="pt-3 first:pt-0">
-                                  <span className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">{answer.question}</span>
-                                  <div className="text-sm text-gray-900 dark:text-gray-200 text-sm">
-                                    {answer.fieldType === "file" && answer.fileData ? (
-                                      <a
-                                        href={answer.fileData}
-                                        target="_blank"
-                                        rel="noreferrer"
-                                        className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 font-medium"
-                                      >
-                                        📄 {answer.fileName || "Open attachment"}
-                                      </a>
-                                    ) : (
-                                      answer.value || <span className="text-gray-400 italic">No answer</span>
-                                    )}
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                 </div>

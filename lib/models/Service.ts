@@ -35,6 +35,7 @@ export type ServiceFormField = {
   allowNotApplicable?: boolean;
   notApplicableText?: string;
   copyFromPersonalDetailsFieldKey?: string;
+  copyFromDigiLockerFieldKey?: string;
   previewWidth?: "full" | "half" | "third";
 };
 
@@ -52,6 +53,7 @@ export type CandidateLayoutSnapshotField = {
   allowNotApplicable?: boolean;
   notApplicableText?: string;
   copyFromPersonalDetailsFieldKey?: string;
+  copyFromDigiLockerFieldKey?: string;
   previewWidth?: "full" | "half" | "third";
 };
 
@@ -116,6 +118,7 @@ const serviceSchema = new Schema<IService>(
         allowNotApplicable: { type: Boolean, default: false },
         notApplicableText: { type: String, default: "" },
         copyFromPersonalDetailsFieldKey: { type: String, default: "" },
+        copyFromDigiLockerFieldKey: { type: String, default: "" },
         previewWidth: {
           type: String,
           enum: ["full", "half", "third"],
@@ -142,6 +145,7 @@ const serviceSchema = new Schema<IService>(
         allowNotApplicable: { type: Boolean, default: false },
         notApplicableText: { type: String, default: "" },
         copyFromPersonalDetailsFieldKey: { type: String, default: "" },
+        copyFromDigiLockerFieldKey: { type: String, default: "" },
         previewWidth: {
           type: String,
           enum: ["full", "half", "third"],
@@ -166,6 +170,7 @@ const hasEnhancedServiceFields = Boolean(
     mongoose.models.Service?.schema.path("formFields.allowNotApplicable") &&
     mongoose.models.Service?.schema.path("formFields.notApplicableText") &&
     mongoose.models.Service?.schema.path("formFields.copyFromPersonalDetailsFieldKey") &&
+    mongoose.models.Service?.schema.path("formFields.copyFromDigiLockerFieldKey") &&
     mongoose.models.Service?.schema.path("formFields.previewWidth") &&
     mongoose.models.Service?.schema.path("candidateLayoutSnapshot") &&
     mongoose.models.Service?.schema.path("candidateLayoutSnapshot.fieldType") &&

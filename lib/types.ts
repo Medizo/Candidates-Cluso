@@ -252,6 +252,7 @@ export type ServiceFormField = {
   allowNotApplicable?: boolean;
   notApplicableText?: string;
   copyFromPersonalDetailsFieldKey?: string;
+  copyFromDigiLockerFieldKey?: string;
   previewWidth?: "full" | "half" | "third";
 };
 

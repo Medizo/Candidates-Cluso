@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   ChevronDown,
@@ -44,6 +44,7 @@ import {
   type SystemLocationFieldType,
 } from "@/lib/locationHierarchy";
 import { RequestItem, ServiceFormField } from "@/lib/types";
+import { useDigiLockerStatus } from "@/components/dashboard/DigiLockerCard";
 
 type DraftEntryFile = {
   entryIndex: number;
@@ -79,6 +80,93 @@ const ALLOWED_UPLOAD_MIME_TYPES = new Set([
 const MAX_UPLOAD_SIZE_BYTES = 5 * 1024 * 1024;
 const DROPDOWN_DEFAULT_OPTION_LABEL = "Select";
 const DROPDOWN_DEFAULT_OPTION_VALUES = new Set(["", "select", "select an option"]);
+
+const DIGILOCKER_FIELD_MAP: Record<string, { label: string; resolve: (profile: any) => string }> = {
+  name: {
+    label: "Full Name",
+    resolve: (p) => p?.name ?? "",
+  },
+  dob: {
+    label: "Date of Birth",
+    resolve: (p) => {
+      const raw = (p?.dob ?? "").trim();
+      if (!raw) return "";
+      // Already in yyyy-MM-dd (ISO) format
+      if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+
+      // 1. Matches DD-MM-YYYY or DD/MM/YYYY
+      const dmYMatch = raw.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})$/);
+      if (dmYMatch) {
+        const day = dmYMatch[1].padStart(2, "0");
+        const month = dmYMatch[2].padStart(2, "0");
+        const year = dmYMatch[3];
+        return `${year}-${month}-${day}`;
+      }
+
+      // 2. Matches YYYY/MM/DD
+      const YmdMatch = raw.match(/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})$/);
+      if (YmdMatch) {
+        const year = YmdMatch[1];
+        const month = YmdMatch[2].padStart(2, "0");
+        const day = YmdMatch[3].padStart(2, "0");
+        return `${year}-${month}-${day}`;
+      }
+
+      // 3. Matches 8 consecutive digits (e.g. 25121995 or 19951225)
+      if (/^\d{8}$/.test(raw)) {
+        const part1 = raw.substring(0, 4);
+        const yearNum = parseInt(part1, 10);
+        if (yearNum >= 1900 && yearNum <= 2100) {
+          const year = part1;
+          const month = raw.substring(4, 6);
+          const day = raw.substring(6, 8);
+          return `${year}-${month}-${day}`;
+        } else {
+          const day = raw.substring(0, 2);
+          const month = raw.substring(2, 4);
+          const year = raw.substring(4, 8);
+          return `${year}-${month}-${day}`;
+        }
+      }
+
+      // 4. Generic fallback split
+      const parts = raw.split(/[-/]/);
+      if (parts.length === 3 && parts[0].length <= 2 && parts[2].length === 4) {
+        const [dd, mm, yyyy] = parts;
+        return `${yyyy}-${mm.padStart(2, "0")}-${dd.padStart(2, "0")}`;
+      }
+      return raw;
+    },
+  },
+  gender: {
+    label: "Gender",
+    resolve: (p) => {
+      const g = p?.gender ?? "";
+      const map: Record<string, string> = { M: "Male", F: "Female", O: "Other" };
+      return map[g] || g;
+    },
+  },
+  email: {
+    label: "Email",
+    resolve: (p) => p?.email ?? "",
+  },
+  mobile: {
+    label: "Mobile",
+    resolve: (p) => p?.mobile ?? "",
+  },
+  maskedAadhaar: {
+    label: "Aadhaar",
+    resolve: (p) => p?.maskedAadhaar ?? "",
+  },
+  panNumber: {
+    label: "PAN",
+    resolve: (p) => p?.panNumber ?? "",
+  },
+  drivingLicence: {
+    label: "Driving Licence",
+    resolve: (p) => p?.drivingLicence ?? "",
+  },
+};
 
 function isDefaultDropdownOptionValue(rawValue: string, allowedOptions?: string[]) {
   const normalizedValue = rawValue.trim();
@@ -528,6 +616,8 @@ function OrdersPageContent() {
   const [requestsReady, setRequestsReady] = useState(false);
   const [formDrafts, setFormDrafts] = useState<Record<string, Record<string, Record<string, DraftAnswer>>>>({});
   const [personalDetailsCopyToggles, setPersonalDetailsCopyToggles] = useState<Record<string, boolean>>({});
+  const [digiLockerCopyToggles, setDigiLockerCopyToggles] = useState<Record<string, boolean>>({});
+  const digiLockerStatus = useDigiLockerStatus();
   const [submittingRequestId, setSubmittingRequestId] = useState("");
   const [expandedRequestId, setExpandedRequestId] = useState<string | null>(null);
   const [message, setMessage] = useState("");
@@ -558,6 +648,90 @@ function OrdersPageContent() {
     [items],
   );
 
+  const digiLockerAutoFillDone = useRef(false);
+
+  useEffect(() => {
+    if (
+      !digiLockerStatus.linked ||
+      !digiLockerStatus.profile ||
+      pendingItems.length === 0 ||
+      digiLockerAutoFillDone.current
+    ) {
+      return;
+    }
+
+    digiLockerAutoFillDone.current = true;
+
+    setFormDrafts((prevDrafts) => {
+      let nextDrafts = { ...prevDrafts };
+      let draftsChanged = false;
+
+      for (const item of pendingItems) {
+        for (const serviceForm of item.serviceForms) {
+          for (const field of serviceForm.fields) {
+            const digiLockerFieldKey = field.copyFromDigiLockerFieldKey?.trim();
+            if (!digiLockerFieldKey || field.fieldType === "file" || field.fieldType === "composite") {
+              continue;
+            }
+
+            const fieldEntry = DIGILOCKER_FIELD_MAP[digiLockerFieldKey];
+            if (!fieldEntry) {
+              continue;
+            }
+
+            const resolvedValue = fieldEntry.resolve(digiLockerStatus.profile);
+            const copyValue = resolvedValue?.trim()
+              ? resolvePersonalDetailsCopyValue(field, resolvedValue.trim())
+              : null;
+
+            if (!copyValue || !copyValue.trim()) {
+              continue;
+            }
+
+            const fieldStorageKey = field.fieldKey?.trim() || field.question.trim();
+
+            if (!nextDrafts[item._id]) nextDrafts[item._id] = {};
+            if (!nextDrafts[item._id][serviceForm.serviceId]) nextDrafts[item._id][serviceForm.serviceId] = {};
+
+            const existingDraft = nextDrafts[item._id][serviceForm.serviceId][fieldStorageKey];
+
+            if (!existingDraft) {
+              const existingResponse = item.candidateFormResponses.find(
+                (r) => r.serviceId === serviceForm.serviceId,
+              );
+              const existingAnswer = existingResponse?.answers.find((a) =>
+                field.fieldKey?.trim()
+                  ? a.fieldKey?.trim() === field.fieldKey.trim()
+                  : a.question === field.question,
+              );
+
+              if (!existingAnswer || !existingAnswer.value.trim()) {
+                nextDrafts[item._id][serviceForm.serviceId][fieldStorageKey] = {
+                  value: copyValue,
+                  notApplicable: false,
+                  notApplicableText: "",
+                  fileName: "",
+                  fileMimeType: "",
+                  fileSize: null,
+                  fileData: "",
+                  entryFiles: [],
+                };
+                draftsChanged = true;
+              }
+            } else if (!existingDraft.value.trim()) {
+              nextDrafts[item._id][serviceForm.serviceId][fieldStorageKey] = {
+                ...existingDraft,
+                value: copyValue,
+              };
+              draftsChanged = true;
+            }
+          }
+        }
+      }
+      return draftsChanged ? nextDrafts : prevDrafts;
+    });
+  }, [digiLockerStatus, pendingItems]);
+
   const resolvedExpandedRequestId = useMemo(() => {
     if (pendingItems.length === 0) {
       return null;
@@ -567,7 +741,7 @@ function OrdersPageContent() {
       return expandedRequestId;
     }
 
-    return pendingItems[0]._id;
+    return null;
   }, [expandedRequestId, pendingItems]);
 
   useEffect(() => {
@@ -733,6 +907,17 @@ function OrdersPageContent() {
     entryIndex?: number,
   ) {
     return `${requestId}::${serviceId}::${fieldStorageKey}::${
+      typeof entryIndex === "number" ? entryIndex : "single"
+    }`;
+  }
+
+  function buildDigiLockerCopyToggleKey(
+    requestId: string,
+    serviceId: string,
+    fieldStorageKey: string,
+    entryIndex?: number,
+  ) {
+    return `dl::${requestId}::${serviceId}::${fieldStorageKey}::${
       typeof entryIndex === "number" ? entryIndex : "single"
     }`;
   }
@@ -948,10 +1133,26 @@ function OrdersPageContent() {
     }
 
     if (field.fieldType === "dropdown") {
-      const matchingOption = (field.dropdownOptions ?? []).find(
-        (option) => option.trim().toLowerCase() === normalizedSourceValue.toLowerCase(),
+      const options = field.dropdownOptions ?? [];
+      const sourceLower = normalizedSourceValue.toLowerCase();
+
+      // 1. Exact case-insensitive match
+      const exactMatch = options.find(
+        (option) => option.trim().toLowerCase() === sourceLower,
       );
-      return matchingOption ?? null;
+      if (exactMatch) return exactMatch;
+
+      // 2. Partial match — source value is contained in an option (e.g. "male" → "Male")
+      const partialMatch = options.find(
+        (option) => option.trim().toLowerCase().includes(sourceLower),
+      );
+      if (partialMatch) return partialMatch;
+
+      // 3. Reverse partial — option label is contained in the source value
+      const reverseMatch = options.find(
+        (option) => sourceLower.includes(option.trim().toLowerCase()),
+      );
+      return reverseMatch ?? null;
     }
 
     if (field.fieldType === "mobile") {
@@ -1119,6 +1320,107 @@ function OrdersPageContent() {
         </label>
         {helperText ? (
           <p style={{ margin: 0, color: "#64748B", fontSize: "0.78rem" }}>{helperText}</p>
+        ) : null}
+      </div>
+    );
+  }
+
+  function renderDigiLockerCopyCheckbox(params: {
+    item: RequestItem;
+    serviceForm: RequestServiceForm;
+    field: ServiceFormField;
+    fieldStorageKey: string;
+    answer: DraftAnswer;
+    entryIndex?: number;
+  }) {
+    const { item, serviceForm, field, fieldStorageKey, answer, entryIndex } = params;
+    const digiLockerFieldKey = field.copyFromDigiLockerFieldKey?.trim() || "";
+
+    if (!digiLockerFieldKey || field.fieldType === "file" || field.fieldType === "composite") {
+      return null;
+    }
+
+    if (!digiLockerStatus.linked || !digiLockerStatus.profile) {
+      return null;
+    }
+
+    const fieldEntry = DIGILOCKER_FIELD_MAP[digiLockerFieldKey];
+    if (!fieldEntry) {
+      return null;
+    }
+
+    const resolvedValue = fieldEntry.resolve(digiLockerStatus.profile);
+    const copyValue = resolvedValue?.trim()
+      ? resolvePersonalDetailsCopyValue(field, resolvedValue.trim())
+      : null;
+    const canCopy = Boolean(copyValue && copyValue.trim());
+    const copyToggleKey = buildDigiLockerCopyToggleKey(
+      item._id,
+      serviceForm.serviceId,
+      fieldStorageKey,
+      entryIndex,
+    );
+    // Treat undefined as checked so it's default checked
+    const checked = digiLockerCopyToggles[copyToggleKey] !== false;
+
+    let helperText = "";
+    if (!resolvedValue?.trim()) {
+      helperText = `"${fieldEntry.label}" is not available in your DigiLocker profile.`;
+    } else if (!canCopy) {
+      helperText = "DigiLocker value cannot be copied because it does not match this field format.";
+    }
+
+    return (
+      <div style={{ display: "grid", gap: "0.25rem" }}>
+        <label
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "0.4rem",
+            color: "#047857",
+            fontSize: "0.8rem",
+            fontWeight: 600,
+          }}
+        >
+          <input
+            type="checkbox"
+            checked={checked}
+            disabled={!canCopy}
+            autoComplete="off"
+            onChange={(e) => {
+              const nextChecked = e.target.checked;
+              setDigiLockerCopyToggles((prev) => ({
+                ...prev,
+                [copyToggleKey]: nextChecked,
+              }));
+
+              if (nextChecked && copyValue) {
+                applyPersonalDetailsCopyToField(
+                  item,
+                  serviceForm,
+                  field,
+                  fieldStorageKey,
+                  answer,
+                  copyValue,
+                  entryIndex,
+                );
+                return;
+              }
+
+              clearPersonalDetailsCopiedFieldValue(
+                item,
+                serviceForm,
+                fieldStorageKey,
+                answer,
+                entryIndex,
+              );
+            }}
+            style={{ accentColor: "#059669" }}
+          />
+          Use value from DigiLocker: {fieldEntry.label}
+        </label>
+        {helperText ? (
+          <p style={{ margin: 0, color: "#6B7280", fontSize: "0.78rem" }}>{helperText}</p>
         ) : null}
       </div>
     );
@@ -1645,6 +1947,146 @@ function OrdersPageContent() {
       <div className="candidate-forms-quiet">
         {message ? <p className={`inline-alert ${getAlertTone(message)}`}>{message}</p> : null}
 
+        {!digiLockerStatus.loading && !digiLockerStatus.linked && (
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "1rem",
+              padding: "0.85rem 1.15rem",
+              background: "linear-gradient(135deg, #EFF6FF 0%, #F0FDFA 100%)",
+              border: "1px solid #BAE6FD",
+              borderRadius: "12px",
+              marginBottom: "1rem",
+              flexWrap: "wrap",
+            }}
+          >
+            <div
+              style={{
+                width: "2.5rem",
+                height: "2.5rem",
+                borderRadius: "10px",
+                background: "#fff",
+                border: "1px solid #E0F2FE",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexShrink: 0,
+              }}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/images/digilocker-logo.svg"
+                alt="DigiLocker"
+                style={{ width: "1.5rem", height: "1.5rem", objectFit: "contain" }}
+              />
+            </div>
+            <div style={{ flex: 1, minWidth: "200px" }}>
+              <div style={{ fontWeight: 700, fontSize: "0.92rem", color: "#0C4A6E" }}>
+                Link your DigiLocker to auto-fill forms
+              </div>
+              <div style={{ fontSize: "0.82rem", color: "#64748B", marginTop: "0.15rem" }}>
+                Verify your identity and auto-fill details like name, date of birth, PAN, and more directly from government records.
+              </div>
+            </div>
+            <a
+              href="/api/digilocker/authorize"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "0.45rem",
+                padding: "0.5rem 1.1rem",
+                background: "#034EA2",
+                color: "#fff",
+                fontWeight: 700,
+                fontSize: "0.85rem",
+                borderRadius: "8px",
+                textDecoration: "none",
+                border: "none",
+                cursor: "pointer",
+                whiteSpace: "nowrap",
+                transition: "background 0.2s, transform 0.15s",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = "#023E82";
+                e.currentTarget.style.transform = "translateY(-1px)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = "#034EA2";
+                e.currentTarget.style.transform = "translateY(0)";
+              }}
+            >
+              <ShieldCheck size={16} />
+              Connect DigiLocker
+            </a>
+          </div>
+        )}
+
+        {!digiLockerStatus.loading && digiLockerStatus.linked && (
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "1rem",
+              padding: "0.85rem 1.15rem",
+              background: "linear-gradient(135deg, #ECFDF5 0%, #F0FDF4 100%)",
+              border: "1px solid #A7F3D0",
+              borderRadius: "12px",
+              marginBottom: "1rem",
+              flexWrap: "wrap",
+            }}
+          >
+            <div
+              style={{
+                width: "2.5rem",
+                height: "2.5rem",
+                borderRadius: "10px",
+                background: "#fff",
+                border: "1px solid #D1FAE5",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexShrink: 0,
+              }}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/images/digilocker-logo.svg"
+                alt="DigiLocker"
+                style={{ width: "1.5rem", height: "1.5rem", objectFit: "contain" }}
+              />
+            </div>
+            <div style={{ flex: 1, minWidth: "200px" }}>
+              <div style={{ fontWeight: 700, fontSize: "0.92rem", color: "#065F46", display: "flex", alignItems: "center", gap: "0.35rem" }}>
+                <ShieldCheck size={16} style={{ color: "#10B981" }} />
+                DigiLocker Verified Account Connected
+              </div>
+              <div style={{ fontSize: "0.82rem", color: "#047857", marginTop: "0.15rem" }}>
+                Linked as <strong style={{ color: "#064E3B" }}>{digiLockerStatus.profile?.name}</strong>. Details like your government name, DOB, mobile number, and identity numbers have been securely fetched and auto-filled.
+              </div>
+            </div>
+            <span
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "0.35rem",
+                padding: "0.4rem 0.85rem",
+                background: "#10B981",
+                color: "#fff",
+                fontWeight: 700,
+                fontSize: "0.8rem",
+                borderRadius: "8px",
+                whiteSpace: "nowrap",
+                border: "none",
+                textTransform: "uppercase",
+                letterSpacing: "0.03em",
+              }}
+            >
+              Verified ✔
+            </span>
+          </div>
+        )}
+
         {pendingItems.length === 0 ? (
           <BlockCard as="article" tone="muted">
             <BlockTitle
@@ -1666,7 +2108,12 @@ function OrdersPageContent() {
             const hasRejectedFields = rejectedFieldSet.size > 0;
 
             return (
-              <BlockCard as="article" key={item._id} id={`request-${item._id}`}>
+              <BlockCard
+                as="article"
+                key={item._id}
+                id={`request-${item._id}`}
+                className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm mb-3 transition-all hover:border-blue-300 hover:shadow-md dark:bg-gray-800 dark:border-gray-700"
+              >
                 <button
                   className="request-accordion-toggle"
                   type="button"
@@ -1678,13 +2125,22 @@ function OrdersPageContent() {
                   }
                 >
                   <span className="request-accordion-main" style={{ alignItems: "start" }}>
-                    <span>
+                    <span style={{ display: "flex", flexDirection: "column", gap: "0.35rem" }}>
                       <span className="request-accordion-candidate" style={{ display: "block" }}>
                         {item.customerName}
                       </span>
-                      <span className="request-accordion-status" style={{ display: "block", marginTop: "0.15rem" }}>
-                        Request created {new Date(item.createdAt).toLocaleDateString()} | {" "}
-                        {formatServiceSummaryWithHistory(item)}
+                      <span style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexWrap: "wrap", marginTop: "0.1rem" }}>
+                        <span className="request-accordion-date-chip">
+                          <Calendar size={13} style={{ color: "var(--brand)" }} />
+                          <span>Created:</span>
+                          <strong>
+                            {new Date(item.createdAt).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
+                          </strong>
+                        </span>
+                        <span style={{ color: "var(--border-color)" }}>|</span>
+                        <span className="request-accordion-status" style={{ fontSize: "0.85rem", color: "var(--ink-soft)" }}>
+                          {formatServiceSummaryWithHistory(item)}
+                        </span>
                       </span>
                     </span>
                   </span>
@@ -1696,19 +2152,9 @@ function OrdersPageContent() {
                 {isExpanded ? (
                   <div className="request-accordion-details" style={{ marginTop: "0.2rem" }}>
                     {hasRejectedFields ? (
-                      <div
-                        style={{
-                          marginBottom: "0.9rem",
-                          border: "1px solid #F5C2C7",
-                          borderRadius: "12px",
-                          background: "#FFF4F5",
-                          padding: "0.75rem 0.85rem",
-                          display: "grid",
-                          gap: "0.45rem",
-                        }}
-                      >
-                        <strong style={{ color: "#9F1239" }}>Correction requested</strong>
-                        <p style={{ margin: 0, color: "#6B1E31", fontSize: "0.88rem" }}>
+                      <div className="mb-4 border border-red-200 dark:border-red-900/30 rounded-xl bg-red-50 dark:bg-red-950/20 p-4 grid gap-1.5">
+                        <strong className="text-red-800 dark:text-red-400">Correction requested</strong>
+                        <p className="margin-0 text-red-700 dark:text-red-300/90 text-sm leading-relaxed">
                           Update the highlighted fields below and submit again to move this request back to admin review.
                         </p>
                         {item.rejectionNote ? (
@@ -1769,10 +2215,10 @@ function OrdersPageContent() {
                           {Boolean(serviceForm.allowMultipleEntries) ? (
                             <div
                               style={{
-                                border: "1px solid #E2E8F0",
+                                border: "1px solid var(--border-color)",
                                 borderRadius: "12px",
                                 padding: "1rem",
-                                background: "#F8FAFC",
+                                background: "var(--body-bg)",
                                 display: "flex",
                                 alignItems: "center",
                                 justifyContent: "space-between",
@@ -1780,7 +2226,7 @@ function OrdersPageContent() {
                                 flexWrap: "wrap",
                               }}
                             >
-                              <span style={{ color: "#334155", fontSize: "0.95rem", fontWeight: 600 }}>
+                              <span style={{ color: "var(--ink)", fontSize: "0.95rem", fontWeight: 600 }}>
                                 {serviceForm?.multipleEntriesLabel || "Whole-service entries"}: {getServiceLevelEntryCount(item, serviceForm)}
                               </span>
                               <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
@@ -1788,9 +2234,9 @@ function OrdersPageContent() {
                                   style={{
                                     padding: "0.45rem 0.75rem",
                                     borderRadius: "999px",
-                                    background: "#E0F2FE",
-                                    border: "1px solid #BAE6FD",
-                                    color: "#0C4A6E",
+                                    background: "var(--brand-light)",
+                                    border: "1px solid var(--border-color)",
+                                    color: "var(--brand)",
                                     fontSize: "0.8rem",
                                     fontWeight: 700,
                                   }}
@@ -1800,7 +2246,7 @@ function OrdersPageContent() {
                                 <button
                                   className="btn btn-secondary"
                                   type="button"
-                                  style={{ padding: "0.5rem 1rem", fontSize: "0.875rem", borderRadius: "8px", background: "#EFF6FF", color: "#2563EB", border: "1px solid #BFDBFE", fontWeight: 600, cursor: "pointer", transition: "all 0.2s" }}
+                                  style={{ padding: "0.5rem 1rem", fontSize: "0.875rem", borderRadius: "8px", background: "var(--brand-light)", color: "var(--brand)", border: "1px solid var(--border-color)", fontWeight: 600, cursor: "pointer", transition: "all 0.2s" }}
                                   onClick={() => addServiceLevelEntry(item, serviceForm)}
                                 >
                                   + Add another {serviceForm?.multipleEntriesLabel?.trim() || "entry"}
@@ -1808,7 +2254,7 @@ function OrdersPageContent() {
                                 <button
                                   className="btn btn-secondary"
                                   type="button"
-                                  style={{ padding: "0.5rem 1rem", fontSize: "0.875rem", borderRadius: "8px", background: "#FEF2F2", color: "#DC2626", border: "1px solid #FECACA", fontWeight: 600, cursor: "pointer", transition: "all 0.2s" }}
+                                  style={{ padding: "0.5rem 1rem", fontSize: "0.875rem", borderRadius: "8px", background: "var(--danger-bg)", color: "var(--danger-text)", border: "1px solid var(--border-color)", fontWeight: 600, cursor: "pointer", transition: "all 0.2s" }}
                                   disabled={getServiceLevelEntryCount(item, serviceForm) <= 1}
                                   onClick={() => removeServiceLevelEntry(item, serviceForm)}
                                 >
@@ -1826,9 +2272,9 @@ function OrdersPageContent() {
                                 <div
                                   key={`${item._id}-${serviceForm.serviceId}-entry-${serviceEntryIndex}`}
                                   style={{
-                                    border: "1px solid #E2E8F0",
+                                    border: "1px solid var(--border-color)",
                                     borderRadius: "12px",
-                                    background: "#F8FAFC",
+                                    background: "var(--bg-color)",
                                     padding: "1.25rem",
                                     display: "grid",
                                     gap: "1.25rem",
@@ -1841,11 +2287,11 @@ function OrdersPageContent() {
                                       alignItems: "center",
                                       justifyContent: "space-between",
                                       gap: "0.5rem",
-                                      borderBottom: "2px solid #E2E8F0",       
+                                      borderBottom: "2px solid var(--border-color)",       
                                       paddingBottom: "0.75rem",
                                     }}
                                   >
-                                    <strong style={{ fontSize: "1rem", color: "#1E293B", fontWeight: 700 }}>
+                                    <strong style={{ fontSize: "1rem", color: "var(--ink)", fontWeight: 700 }}>
                                       Entry {serviceEntryIndex + 1}
                                     </strong>
                                   </div>
@@ -1916,15 +2362,15 @@ function OrdersPageContent() {
                                             <div style={{ display: "grid", gap: "0.7rem" }}>
                                               <div
                                                 style={{
-                                                  border: "1px solid #E2E8F0",
+                                                  border: "1px solid var(--border-color)",
                                                   borderRadius: "10px",
-                                                  background: "#FFFFFF",
+                                                  background: "var(--body-bg)",
                                                   padding: "0.6rem",
                                                   display: "grid",
                                                   gap: "0.45rem",
                                                 }}
                                               >
-                                                <p style={{ margin: 0, color: "#334155", fontSize: "0.82rem", fontWeight: 700 }}>
+                                                <p style={{ margin: 0, color: "var(--ink)", fontSize: "0.82rem", fontWeight: 700 }}>
                                                   Entry {serviceEntryNumber} attachment
                                                 </p>
                                                 <input
@@ -1942,12 +2388,12 @@ function OrdersPageContent() {
                                                     )
                                                   }
                                                 />
-                                                <p style={{ margin: 0, color: "#6C757D", fontSize: "0.82rem" }}>
+                                                <p style={{ margin: 0, color: "var(--ink-soft)", fontSize: "0.82rem" }}>
                                                   Upload only for this entry.
                                                 </p>
                                                 {entryFile?.fileData ? (
                                                   <div style={{ marginTop: "0.15rem", fontSize: "0.86rem" }}>
-                                                    <a href={entryFile.fileData} target="_blank" rel="noreferrer" style={{ color: "#2563EB", fontWeight: 700 }}>
+                                                    <a href={entryFile.fileData} target="_blank" rel="noreferrer" style={{ color: "var(--brand)", fontWeight: 700 }}>
                                                       {entryFile.fileName || `Entry ${serviceEntryNumber} file`}
                                                     </a>
                                                     {entryFile.fileSize ? ` (${formatFileSize(entryFile.fileSize)})` : ""}
@@ -2017,6 +2463,14 @@ function OrdersPageContent() {
                                         answer,
                                         entryIndex: serviceEntryIndex,
                                       });
+                                      const digiLockerCopyToggle = renderDigiLockerCopyCheckbox({
+                                        item,
+                                        serviceForm,
+                                        field,
+                                        fieldStorageKey,
+                                        answer,
+                                        entryIndex: serviceEntryIndex,
+                                      });
                                       const questionRepeatableHint = Boolean(field.repeatable) ? (
                                         <p style={{ margin: 0, color: "#15803D", fontSize: "0.8rem", fontWeight: 600 }}>
                                           Specific-question multiple entries is enabled in Service Builder.
@@ -2040,6 +2494,7 @@ function OrdersPageContent() {
                                             {questionRepeatableHint}
                                             {entryNotApplicableToggle}
                                             {personalDetailsCopyToggle}
+                                            {digiLockerCopyToggle}
                                             <textarea
                                               className="input"
                                               rows={5}
@@ -2140,6 +2595,7 @@ function OrdersPageContent() {
                                             {questionRepeatableHint}
                                             {entryNotApplicableToggle}
                                             {personalDetailsCopyToggle}
+                                            {digiLockerCopyToggle}
                                             {isDropdownField ? (
                                               <select
                                                 className="input"
@@ -2239,17 +2695,17 @@ function OrdersPageContent() {
                                               />
                                             )}
                                             {isEntryNotApplicable ? (
-                                              <p style={{ margin: 0, color: "#6C757D", fontSize: "0.82rem" }}>
+                                              <p style={{ margin: 0, color: "#6C757D", fontSize: "0.82rem", userSelect: "none" }}>
                                                 Saved as: {resolvedNotApplicableText}
                                               </p>
                                             ) : null}
                                             {field.fieldType === "date" ? (
-                                              <p style={{ margin: 0, color: "#6C757D", fontSize: "0.82rem" }}>
+                                              <p style={{ margin: 0, color: "#6C757D", fontSize: "0.82rem", userSelect: "none" }}>
                                                 Pick a date from the calendar.
                                               </p>
                                             ) : null}
                                             {constraintHint ? (
-                                              <p style={{ margin: 0, color: "#6C757D", fontSize: "0.82rem" }}>
+                                              <p style={{ margin: 0, color: "#6C757D", fontSize: "0.82rem", userSelect: "none" }}>
                                                 {constraintHint}
                                               </p>
                                             ) : null}
@@ -2346,6 +2802,13 @@ function OrdersPageContent() {
                                 </label>
                                 ) : null;
                               const personalDetailsCopyToggle = renderPersonalDetailsCopyCheckbox({
+                                item,
+                                serviceForm,
+                                field,
+                                fieldStorageKey,
+                                answer,
+                              });
+                              const digiLockerCopyToggle = renderDigiLockerCopyCheckbox({
                                 item,
                                 serviceForm,
                                 field,
@@ -2484,6 +2947,7 @@ function OrdersPageContent() {
                                     </label>
                                     {notApplicableToggle}
                                     {personalDetailsCopyToggle}
+                                    {digiLockerCopyToggle}
                                     <textarea
                                       className="input"
                                       rows={5}
@@ -2549,13 +3013,13 @@ function OrdersPageContent() {
                                       PDF, JPG, PNG only. Maximum size 5MB.
                                     </p>
                                     {isNotApplicable ? (
-                                      <p style={{ margin: "0.3rem 0 0", color: "#6C757D", fontSize: "0.82rem" }}>
+                                      <p style={{ margin: "0.3rem 0 0", color: "var(--ink-soft)", fontSize: "0.82rem" }}>
                                         Saved as: {resolvedNotApplicableText}
                                       </p>
                                     ) : null}
                                     {answer.fileData ? (
                                       <div style={{ marginTop: "0.35rem", fontSize: "0.88rem" }}>
-                                        <a href={answer.fileData} target="_blank" rel="noreferrer" style={{ color: "#4A90E2", fontWeight: 700 }}>
+                                        <a href={answer.fileData} target="_blank" rel="noreferrer" style={{ color: "var(--brand)", fontWeight: 700 }}>
                                           {answer.fileName || "View uploaded file"}
                                         </a>
                                         {answer.fileSize ? ` (${formatFileSize(answer.fileSize)})` : ""}
@@ -2887,6 +3351,7 @@ function OrdersPageContent() {
                                   <div style={{ display: "grid", gap: "0.3rem" }}>
                                     {notApplicableToggle}
                                     {personalDetailsCopyToggle}
+                                    {digiLockerCopyToggle}
                                     {isDropdownField ? (
                                       <select
                                         className="input"

@@ -3,7 +3,7 @@
 import { FormEvent, useState, useRef, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { LockKeyhole, Mail, Sparkles, KeyRound, ArrowLeft, ShieldCheck, Timer, Send } from "lucide-react";
+import { LockKeyhole, Mail, Sparkles, KeyRound, ArrowLeft, ShieldCheck, Timer, Send, Eye, EyeOff } from "lucide-react";
 
 type LoginMode = "password" | "otp";
 type OtpStep = "email" | "verify";
@@ -19,6 +19,7 @@ export default function LoginPage() {
 
   // Password mode
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
 
   // OTP mode
   const [otpStep, setOtpStep] = useState<OtpStep>("email");
@@ -124,8 +125,8 @@ export default function LoginPage() {
   }
 
   // ---------- OTP: Verify ----------
-  async function verifyOtp() {
-    const otp = otpDigits.join("");
+  async function verifyOtp(code?: string) {
+    const otp = typeof code === "string" ? code : otpDigits.join("");
     if (otp.length !== 6) {
       setError("Please enter the complete 6-digit code.");
       return;
@@ -178,7 +179,7 @@ export default function LoginPage() {
         const complete = newDigits.join("");
         if (complete.length === 6) {
           // Small delay to let state update render
-          setTimeout(() => verifyOtp(), 50);
+          setTimeout(() => verifyOtp(complete), 50);
         }
       }
     },
@@ -191,7 +192,8 @@ export default function LoginPage() {
         otpInputRefs.current[index - 1]?.focus();
       }
       if (e.key === "Enter") {
-        verifyOtp();
+        const complete = otpDigits.join("");
+        verifyOtp(complete);
       }
     },
     [otpDigits, email],
@@ -215,7 +217,7 @@ export default function LoginPage() {
 
       // Auto-submit if all 6 digits pasted
       if (pasted.length === 6) {
-        setTimeout(() => verifyOtp(), 50);
+        setTimeout(() => verifyOtp(pasted), 50);
       }
     },
     [email],
@@ -356,13 +358,22 @@ export default function LoginPage() {
                   </div>
                   <input
                     id="password"
-                    className="w-full bg-gray-50/50 border-2 border-gray-200 rounded-xl pl-12 pr-4 py-4 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all font-semibold text-lg tracking-wide hover:border-blue-300"
-                    type="password"
+                    className="w-full bg-gray-50/50 border-2 border-gray-200 rounded-xl pl-12 pr-12 py-4 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all font-semibold text-lg tracking-wide hover:border-blue-300"
+                    type={showPassword ? "text" : "password"}
                     placeholder="••••••••"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((prev) => !prev)}
+                    className="absolute right-4 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 focus:outline-none cursor-pointer"
+                    style={{ background: "none", border: "none", display: "flex", alignItems: "center", justifyContent: "center" }}
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                  >
+                    {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                  </button>
                 </div>
               </div>
 
@@ -535,7 +546,7 @@ export default function LoginPage() {
                   {/* Verify button */}
                   <button
                     type="button"
-                    onClick={verifyOtp}
+                    onClick={() => verifyOtp()}
                     className="w-full py-4.5 px-6 bg-gradient-to-r from-emerald-500 to-blue-500 hover:from-emerald-600 hover:to-blue-600 text-white font-bold text-lg rounded-xl shadow-[0_8px_20px_-6px_rgba(16,185,129,0.5)] hover:shadow-[0_12px_24px_-6px_rgba(16,185,129,0.6)] transition-all duration-200 transform hover:-translate-y-1 active:translate-y-0 active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-3 tracking-wide"
                     disabled={loading || otpDigits.join("").length !== 6}
                   >

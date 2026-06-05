@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <rect width="512" height="512" rx="80" fill="#034EA2"/>
+  <g transform="translate(80, 100)">
+    <!-- Lock body -->
+    <rect x="100" y="140" width="152" height="120" rx="16" fill="#FFFFFF"/>
+    <!-- Lock shackle -->
+    <path d="M130 140 V100 Q130 60 176 60 Q222 60 222 100 V140" stroke="#FFFFFF" stroke-width="20" fill="none" stroke-linecap="round"/>
+    <!-- Keyhole -->
+    <circle cx="176" cy="190" r="16" fill="#034EA2"/>
+    <rect x="172" y="200" width="8" height="24" rx="4" fill="#034EA2"/>
+    <!-- Document lines -->
+    <rect x="240" y="80" width="80" height="6" rx="3" fill="#FFFFFF" opacity="0.7"/>
+    <rect x="240" y="100" width="60" height="6" rx="3" fill="#FFFFFF" opacity="0.5"/>
+    <rect x="240" y="120" width="70" height="6" rx="3" fill="#FFFFFF" opacity="0.6"/>
+  </g>
+  <!-- Text: DigiLocker -->
+  <text x="256" y="380" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="52" font-weight="700" fill="#FFFFFF" letter-spacing="2">DigiLocker</text>
+  <text x="256" y="420" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="400" fill="#FFFFFF" opacity="0.8">मेरी पहचान</text>
+</svg>
