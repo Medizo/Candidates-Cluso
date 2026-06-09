@@ -1,7 +1,7 @@
 "use client";
 
-import { FormEvent, useState, useRef, useEffect, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { FormEvent, useState, useRef, useEffect, useCallback, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { LockKeyhole, Mail, Sparkles, KeyRound, ArrowLeft, ShieldCheck, Timer, Send, Eye, EyeOff, UserPlus, Phone, User, ChevronDown } from "lucide-react";
 
@@ -16,8 +16,9 @@ const SIGNUP_COUNTRY_CODES = [
   ...MOBILE_COUNTRY_CODE_OPTIONS.filter((code) => code !== "+91"),
 ];
 
-export default function LoginPage() {
+function LoginContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   // Shared
   const [email, setEmail] = useState("");
@@ -55,33 +56,30 @@ export default function LoginPage() {
 
   // Read from URL parameters to prefill signup
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const params = new URLSearchParams(window.location.search);
-      const mode = params.get("mode");
-      const name = params.get("name");
-      const urlEmail = params.get("email");
-      const phone = params.get("phone");
+    const mode = searchParams.get("mode");
+    const name = searchParams.get("name");
+    const urlEmail = searchParams.get("email");
+    const phone = searchParams.get("phone");
 
-      if (mode === "signup") {
-        setLoginMode("signup");
-        if (name) setSignupName(name);
-        if (urlEmail) {
-          setSignupEmail(urlEmail);
-          setEmail(urlEmail);
-        }
-        if (phone) {
-          // Try to extract country code (e.g. +91 9876543210 or +919876543210)
-          const matches = phone.match(/^(\+\d{1,4})\s*(.*)$/);
-          if (matches) {
-            setSignupCountryCode(matches[1]);
-            setSignupPhone(matches[2].replace(/\D/g, ""));
-          } else {
-            setSignupPhone(phone.replace(/\D/g, ""));
-          }
+    if (mode === "signup") {
+      setLoginMode("signup");
+      if (name) setSignupName(name);
+      if (urlEmail) {
+        setSignupEmail(urlEmail);
+        setEmail(urlEmail);
+      }
+      if (phone) {
+        // Try to extract country code (e.g. +91 9876543210 or +919876543210)
+        const matches = phone.match(/^(\+\d{1,4})\s*(.*)$/);
+        if (matches) {
+          setSignupCountryCode(matches[1]);
+          setSignupPhone(matches[2].replace(/\D/g, ""));
+        } else {
+          setSignupPhone(phone.replace(/\D/g, ""));
         }
       }
     }
-  }, []);
+  }, [searchParams]);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -1142,5 +1140,13 @@ export default function LoginPage() {
         </div>
       </div>
     </main>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginContent />
+    </Suspense>
   );
 }
