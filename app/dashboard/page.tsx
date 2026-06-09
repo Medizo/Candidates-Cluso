@@ -16,6 +16,8 @@ import {
   GraduationCap,
   BriefcaseBusiness,
   UserRound,
+  Briefcase,
+  ChevronDown,
 } from "lucide-react";
 import { PortalFrame } from "@/components/dashboard/PortalFrame";
 import { LoadingScreen } from "@/components/ui/LoadingScreen";
@@ -23,6 +25,69 @@ import { usePortalSession } from "@/lib/hooks/usePortalSession";
 import { useRequestsData } from "@/lib/hooks/useRequestsData";
 import { useDigiLockerStatus } from "@/components/dashboard/DigiLockerCard";
 import { CandidateProfile } from "@/lib/types";
+
+type AppliedJob = {
+  _id: string;
+  jobTitle: string;
+  jobDescription: string | null;
+  jobColor: string;
+  appliedAt: string;
+};
+
+function AppliedJobsSection({ appliedJobs }: { appliedJobs: AppliedJob[] }) {
+  const [expandedJobId, setExpandedJobId] = useState<string | null>(null);
+
+  if (appliedJobs.length === 0) return null;
+
+  return (
+    <div className="applied-jobs-section">
+      <h3>
+        <Briefcase size={20} />
+        Jobs You Applied For
+      </h3>
+      <p className="applied-jobs-subtitle">
+        These are the positions you applied for on our website. Your applications are being reviewed.
+      </p>
+      <div className="applied-jobs-grid">
+        {appliedJobs.map((job) => (
+          <div key={job._id} className="applied-job-card">
+            <div className="applied-job-card-header">
+              <h4 className="applied-job-card-title">
+                <span
+                  className="applied-job-color-dot"
+                  style={{ backgroundColor: job.jobColor }}
+                />
+                {job.jobTitle}
+              </h4>
+              <span className="applied-job-date">
+                Applied {new Date(job.appliedAt).toLocaleDateString()}
+              </span>
+            </div>
+            {job.jobDescription && (
+              <>
+                <button
+                  className={`applied-job-toggle ${expandedJobId === job._id ? "expanded" : ""}`}
+                  onClick={() =>
+                    setExpandedJobId(expandedJobId === job._id ? null : job._id)
+                  }
+                >
+                  {expandedJobId === job._id ? "Hide" : "View"} Job Description
+                  <ChevronDown size={14} />
+                </button>
+                {expandedJobId === job._id && (
+                  <div
+                    className="applied-job-jd-preview"
+                    dangerouslySetInnerHTML={{ __html: job.jobDescription }}
+                  />
+                )}
+              </>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 function DashboardContent() {
   const { me, loading, logout } = usePortalSession();
@@ -35,6 +100,8 @@ function DashboardContent() {
   const [profile, setProfile] = useState<CandidateProfile | null>(null);
   const [profileLoading, setProfileLoading] = useState(true);
   const [animatedPercentage, setAnimatedPercentage] = useState(0);
+  const [appliedJobs, setAppliedJobs] = useState<AppliedJob[]>([]);
+  const [appliedJobsLoading, setAppliedJobsLoading] = useState(true);
 
   const enterpriseLinked = Boolean(me?.enterpriseLinked);
 
@@ -75,6 +142,27 @@ function DashboardContent() {
         console.error("Failed to fetch profile:", err);
       } finally {
         if (active) setProfileLoading(false);
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  // Load applied jobs from the ClusoWebsite database
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const response = await fetch("/api/applied-jobs", { cache: "no-store" });
+        if (response.ok) {
+          const data = await response.json();
+          if (active) setAppliedJobs(data);
+        }
+      } catch (err) {
+        console.error("Failed to fetch applied jobs:", err);
+      } finally {
+        if (active) setAppliedJobsLoading(false);
       }
     })();
     return () => {
@@ -284,6 +372,11 @@ function DashboardContent() {
               </div>
             </div>
           </div>
+
+          {/* Applied Jobs from ClusoWebsite */}
+          {!appliedJobsLoading && appliedJobs.length > 0 && (
+            <AppliedJobsSection appliedJobs={appliedJobs} />
+          )}
 
           {/* Quick Actions (Profile + DigiLocker only for unlinked candidates) */}
           <div className="quick-actions-section" style={{ position: "relative", zIndex: 2 }}>
@@ -500,7 +593,12 @@ function DashboardContent() {
             </div>
           )}
         </div>
-      </div>
+        </div>
+
+        {/* Applied Jobs from ClusoWebsite (for enterprise-linked candidates) */}
+        {!appliedJobsLoading && appliedJobs.length > 0 && (
+          <AppliedJobsSection appliedJobs={appliedJobs} />
+        )}
 
     </PortalFrame>
   );
