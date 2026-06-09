@@ -16,6 +16,7 @@ export type PortalUser = {
   email: string;
   role: PortalRole;
   mustChangePassword?: boolean;
+  enterpriseLinked?: boolean;
 };
 
 export type CandidateEmploymentRecord = {

@@ -5,6 +5,7 @@ const UserSchema = new Schema(
   {
     name: { type: String, required: true },
     email: { type: String, required: true, unique: true, lowercase: true },
+    phone: { type: String, default: "" },
     passwordHash: { type: String, required: true },
     role: {
       type: String,
@@ -24,6 +25,14 @@ const UserSchema = new Schema(
     mustChangePassword: {
       type: Boolean,
       default: undefined,
+    },
+    selfRegistered: {
+      type: Boolean,
+      default: false,
+    },
+    enterpriseLinked: {
+      type: Boolean,
+      default: false,
     },
     candidateProfile: {
       keySkills: {
@@ -132,6 +141,7 @@ const hasMustChangePasswordPath = Boolean(models.User?.schema.path("mustChangePa
 const hasCandidateProfilePath = Boolean(models.User?.schema.path("candidateProfile"));
 const hasDigilockerProfilePath = Boolean(models.User?.schema.path("digilockerProfile"));
 const hasCountryRatesPath = Boolean(models.User?.schema.path("selectedServices.countryRates"));
+const hasEnterpriseLinkedPath = Boolean(models.User?.schema.path("enterpriseLinked"));
 
 if (
   models.User &&
@@ -142,7 +152,8 @@ if (
     !hasMustChangePasswordPath ||
     !hasCandidateProfilePath ||
     !hasDigilockerProfilePath ||
-    !hasCountryRatesPath)
+    !hasCountryRatesPath ||
+    !hasEnterpriseLinkedPath)
 ) {
   delete models.User;
 }

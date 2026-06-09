@@ -16,6 +16,15 @@ const OtpTokenSchema = new Schema({
     type: Number,
     default: 0,
   },
+  // Holds pending registration data during signup flow
+  signupData: {
+    type: {
+      name: { type: String, required: true },
+      phone: { type: String, default: "" },
+      passwordHash: { type: String, required: true },
+    },
+    default: undefined,
+  },
   createdAt: {
     type: Date,
     default: Date.now,

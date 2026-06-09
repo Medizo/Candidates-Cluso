@@ -25,6 +25,8 @@ import {
   Sun,
   Moon,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   KeyRound,
   type LucideIcon,
 } from "lucide-react";
@@ -60,7 +62,7 @@ type IconNavItem = NavItem & {
   subIcons: LucideIcon[];
 };
 
-const navItems: IconNavItem[] = [
+const allNavItems: IconNavItem[] = [
   { 
     href: "/dashboard", 
     label: "Dashboard", 
@@ -118,6 +120,15 @@ const navItems: IconNavItem[] = [
     }
   },
 ];
+
+// Items that require enterprise linking (a form must have been released to the candidate)
+const ENTERPRISE_ONLY_HREFS = new Set(["/dashboard/orders", "/dashboard/requests"]);
+
+function getNavItems(enterpriseLinked: boolean): IconNavItem[] {
+  if (enterpriseLinked) return allNavItems;
+  return allNavItems.filter((item) => !ENTERPRISE_ONLY_HREFS.has(item.href));
+}
+
 
 const REQUESTS_QUERY_KEY = ["candidate-requests"];
 const REQUESTS_STALE_TIME_MS = 5 * 60 * 1000;
@@ -211,6 +222,16 @@ export function PortalFrame({ me, onLogout, title, subtitle, children }: PortalF
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const [clearedNotificationIds, setClearedNotificationIds] = useState<string[]>([]);
+  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+    const stored = localStorage.getItem("cluso-sidebar-collapsed");
+    if (stored === "true") {
+      setIsCollapsed(true);
+    }
+  }, []);
 
   const requestsQuery = useQuery<RequestItem[]>({
     queryKey: REQUESTS_QUERY_KEY,
@@ -388,25 +409,27 @@ export function PortalFrame({ me, onLogout, title, subtitle, children }: PortalF
     [router, setIsNotificationOpen],
   );
 
+  const sidebarCollapsed = isMounted && isCollapsed;
+
   return (
     <div className="admin-layout">
       <aside
         id="candidate-mobile-nav"
-        className={`admin-sidebar ${isMobileNavOpen ? "mobile-open" : ""}`}
+        className={`admin-sidebar ${sidebarCollapsed ? "collapsed" : ""} ${isMobileNavOpen ? "mobile-open" : ""}`}
         aria-label="Portal navigation menu"
       >
         <div className="sidebar-brand flex items-center justify-center p-4">
           <Image
-            src="/images/cluso-infolink-logo.png"
+            src={sidebarCollapsed ? "/images/cluso-logo.png" : "/images/cluso-infolink-logo.png"}
             alt="Cluso Candidate"
-            width={220}
-            height={40}
-            className="h-10 w-auto object-contain"
+            width={sidebarCollapsed ? 36 : 220}
+            height={sidebarCollapsed ? 36 : 40}
+            className="h-10 w-auto object-contain transition-all duration-300"
             priority
           />
         </div>
         <nav className="portal-nav" aria-label="Portal sections">
-          {navItems.map((item) => {
+          {getNavItems(Boolean(me.enterpriseLinked)).map((item) => {
             const Icon = item.icon;
             return (
               <div key={item.href} className="relative group z-0 flex items-stretch lg:group-hover:z-[1600]">
@@ -416,7 +439,7 @@ export function PortalFrame({ me, onLogout, title, subtitle, children }: PortalF
                   className={`portal-nav-link w-full ${isNavActive(pathname, item.href) ? "active" : ""}`}
                 >
                   <Icon size={18} />
-                  {item.label}
+                  <span className="sidebar-link-text">{item.label}</span>
                 </Link>
 
                 <div 
@@ -451,6 +474,22 @@ export function PortalFrame({ me, onLogout, title, subtitle, children }: PortalF
             );
           })}
         </nav>
+
+        <button
+          type="button"
+          onClick={() => {
+            setIsCollapsed((prev) => {
+              const next = !prev;
+              localStorage.setItem("cluso-sidebar-collapsed", String(next));
+              return next;
+            });
+          }}
+          className="sidebar-toggle-btn-bottom"
+          aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+        >
+          {sidebarCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
+          <span className="sidebar-link-text">Collapse Menu</span>
+        </button>
       </aside>
 
       {isMobileNavOpen ? (
@@ -462,7 +501,7 @@ export function PortalFrame({ me, onLogout, title, subtitle, children }: PortalF
         />
       ) : null}
 
-      <main className="admin-main">
+      <main className={`admin-main ${sidebarCollapsed ? "collapsed" : ""}`}>
         <header className="admin-topbar">
           <div className="portal-topbar-leading" style={{ display: "flex", alignItems: "center", gap: "0.65rem" }}>
             <button
