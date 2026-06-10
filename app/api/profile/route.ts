@@ -39,9 +39,10 @@ const profileSchema = z.object({
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function normalizeProfile(parsed: any) {
+  const data = parsed || {};
   return {
-    keySkills: [...new Set((parsed.keySkills ?? []).map((s: string) => s.trim()).filter(Boolean))],
-    employment: (parsed.employment ?? []).map((e: z.infer<typeof employmentSchema>) => ({
+    keySkills: [...new Set((data.keySkills ?? []).map((s: string) => s.trim()).filter(Boolean))],
+    employment: (data.employment ?? []).map((e: z.infer<typeof employmentSchema>) => ({
       companyName: e.companyName || "",
       designation: e.designation || "",
       city: e.city || "",
@@ -53,7 +54,7 @@ function normalizeProfile(parsed: any) {
       employmentType: e.employmentType || "",
       description: e.description || "",
     })),
-    education: (parsed.education ?? []).map((edu: z.infer<typeof educationSchema>) => ({
+    education: (data.education ?? []).map((edu: z.infer<typeof educationSchema>) => ({
       level: edu.level || "",
       institution: edu.institution || "",
       degree: edu.degree || "",

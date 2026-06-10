@@ -101,6 +101,11 @@ export async function POST(req: NextRequest) {
     const newHash = await bcrypt.hash(parsed.data.newPassword, 10);
     user.passwordHash = newHash;
     user.password = newHash;
+  } else {
+    // If not updating password, ensure passwordHash is filled from password to satisfy schema validation
+    if (user.password && !user.passwordHash) {
+      user.passwordHash = user.password;
+    }
   }
   user.mustChangePassword = false;
   await user.save();
