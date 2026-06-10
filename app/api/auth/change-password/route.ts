@@ -36,15 +36,18 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const currentPasswordHash = user.passwordHash || user.password;
   const isCurrentPasswordValid = await bcrypt.compare(
     parsed.data.currentPassword,
-    user.passwordHash,
+    currentPasswordHash || "",
   );
   if (!isCurrentPasswordValid) {
     return NextResponse.json({ error: "Current password is incorrect." }, { status: 401 });
   }
 
-  user.passwordHash = await bcrypt.hash(parsed.data.newPassword, 10);
+  const newHash = await bcrypt.hash(parsed.data.newPassword, 10);
+  user.passwordHash = newHash;
+  user.password = newHash;
   user.mustChangePassword = false;
   await user.save();
 

@@ -46,7 +46,7 @@ export async function POST(req: Request) {
     await connectMongo();
 
     const user = await User.findOne({ email: parsed.data.email.toLowerCase() })
-      .select("_id role passwordHash mustChangePassword deactivated onboarded onboardedFromCandidate")
+      .select("_id role password passwordHash mustChangePassword deactivated onboarded onboardedFromCandidate")
       .lean();
     if (!user) {
       return NextResponse.json({ error: "Invalid credentials." }, { status: 401 });
@@ -56,7 +56,9 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Invalid credentials." }, { status: 401 });
     }
 
-    const storedPasswordHash = typeof user.passwordHash === "string" ? user.passwordHash : "";
+    const storedPasswordHash = 
+      (typeof user.passwordHash === "string" ? user.passwordHash : "") || 
+      (typeof user.password === "string" ? user.password : "");
     if (!storedPasswordHash) {
       return NextResponse.json({ error: "Invalid credentials." }, { status: 401 });
     }

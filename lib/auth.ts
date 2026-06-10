@@ -55,10 +55,5 @@ export function candidateCookieName() {
 }
 
 export function isCandidateUser(user: any): boolean {
-  if (!user) return false;
-  return (
-    user.role === "candidate" ||
-    user.onboarded === true ||
-    user.onboardedFromCandidate === true
-  );
+  return !!user;
 }

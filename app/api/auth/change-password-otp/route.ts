@@ -97,7 +97,9 @@ export async function POST(req: NextRequest) {
   await OtpToken.deleteMany({ email });
 
   // Update the password
-  user.passwordHash = await bcrypt.hash(parsed.data.newPassword, 10);
+  const newHash = await bcrypt.hash(parsed.data.newPassword, 10);
+  user.passwordHash = newHash;
+  user.password = newHash;
   user.mustChangePassword = false;
   await user.save();
 
