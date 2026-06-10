@@ -1,7 +1,7 @@
 import bcrypt from "bcryptjs";
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { signCandidateToken, candidateCookieName } from "@/lib/auth";
+import { signCandidateToken, candidateCookieName, isCandidateUser } from "@/lib/auth";
 import { connectMongo } from "@/lib/mongodb";
 import User from "@/lib/models/User";
 
@@ -46,9 +46,20 @@ export async function POST(req: Request) {
     await connectMongo();
 
     const user = await User.findOne({ email: parsed.data.email.toLowerCase() })
-      .select("_id role passwordHash mustChangePassword")
+      .select("_id role passwordHash mustChangePassword deactivated onboarded onboardedFromCandidate")
       .lean();
-    if (!user || user.role !== "candidate") {
+    if (!user) {
+      return NextResponse.json({ error: "Invalid credentials." }, { status: 401 });
+    }
+
+    if (user.deactivated === true) {
+      return NextResponse.json(
+        { error: "Your account has been deactivated. Please contact support." },
+        { status: 403 }
+      );
+    }
+
+    if (!isCandidateUser(user)) {
       return NextResponse.json({ error: "Invalid credentials." }, { status: 401 });
     }
 

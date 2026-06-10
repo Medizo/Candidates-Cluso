@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import { candidateCookieName, verifyCandidateToken } from "@/lib/auth";
+import { candidateCookieName, verifyCandidateToken, isCandidateUser } from "@/lib/auth";
 import { connectMongo } from "@/lib/mongodb";
 import User from "@/lib/models/User";
 import VerificationRequest from "@/lib/models/VerificationRequest";
@@ -21,7 +21,7 @@ export async function GET() {
   await connectMongo();
 
   const user = await User.findById(payload.userId).lean();
-  if (!user || user.role !== "candidate") {
+  if (!user || !isCandidateUser(user)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

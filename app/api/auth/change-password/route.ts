@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { connectMongo } from "@/lib/mongodb";
 import User from "@/lib/models/User";
-import { getCandidateAuthFromRequest } from "@/lib/auth";
+import { getCandidateAuthFromRequest, isCandidateUser } from "@/lib/auth";
 
 const schema = z.object({
   currentPassword: z.string().min(6),
@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
   await connectMongo();
 
   const user = await User.findById(auth.userId);
-  if (!user || user.role !== "candidate") {
+  if (!user || !isCandidateUser(user)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

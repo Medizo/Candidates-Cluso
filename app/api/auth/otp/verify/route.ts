@@ -5,7 +5,7 @@ import { z } from "zod";
 import { connectMongo } from "@/lib/mongodb";
 import User from "@/lib/models/User";
 import OtpToken from "@/lib/models/OtpToken";
-import { signCandidateToken, candidateCookieName } from "@/lib/auth";
+import { signCandidateToken, candidateCookieName, isCandidateUser } from "@/lib/auth";
 
 const MAX_OTP_ATTEMPTS = 5;
 
@@ -105,10 +105,24 @@ export async function POST(req: Request) {
 
     // Look up the candidate user
     const user = await User.findOne({ email })
-      .select("_id role mustChangePassword")
+      .select("_id role mustChangePassword deactivated onboarded onboardedFromCandidate")
       .lean();
 
-    if (!user || user.role !== "candidate") {
+    if (!user) {
+      return NextResponse.json(
+        { error: "Account not found." },
+        { status: 401 },
+      );
+    }
+
+    if (user.deactivated === true) {
+      return NextResponse.json(
+        { error: "Your account has been deactivated. Please contact support." },
+        { status: 403 }
+      );
+    }
+
+    if (!isCandidateUser(user)) {
       return NextResponse.json(
         { error: "Account not found." },
         { status: 401 },

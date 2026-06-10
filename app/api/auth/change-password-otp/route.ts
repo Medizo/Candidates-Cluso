@@ -4,7 +4,7 @@ import { z } from "zod";
 import { connectMongo } from "@/lib/mongodb";
 import User from "@/lib/models/User";
 import OtpToken from "@/lib/models/OtpToken";
-import { getCandidateAuthFromRequest } from "@/lib/auth";
+import { getCandidateAuthFromRequest, isCandidateUser } from "@/lib/auth";
 
 const MAX_OTP_ATTEMPTS = 5;
 
@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
 
   // Get the user's email
   const user = await User.findById(auth.userId);
-  if (!user || user.role !== "candidate") {
+  if (!user || !isCandidateUser(user)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

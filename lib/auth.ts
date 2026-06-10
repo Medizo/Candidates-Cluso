@@ -53,3 +53,13 @@ export async function getCandidateAuthFromCookies() {
 export function candidateCookieName() {
   return TOKEN_NAME;
 }
+
+export function isCandidateUser(user: any): boolean {
+  if (!user) return false;
+  if (user.deactivated === true) return false;
+  return (
+    user.role === "candidate" ||
+    user.onboarded === true ||
+    user.onboardedFromCandidate === true
+  );
+}

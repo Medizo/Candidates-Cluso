@@ -9,7 +9,6 @@ const UserSchema = new Schema(
     passwordHash: { type: String, required: true },
     role: {
       type: String,
-      enum: ["superadmin", "admin", "customer", "delegate", "delegate_user", "candidate"],
       required: true,
     },
     parentCustomer: {
@@ -29,6 +28,22 @@ const UserSchema = new Schema(
     selfRegistered: {
       type: Boolean,
       default: false,
+    },
+    deactivated: {
+      type: Boolean,
+      default: false,
+    },
+    onboarded: {
+      type: Boolean,
+      default: false,
+    },
+    onboardedFromCandidate: {
+      type: Boolean,
+      default: false,
+    },
+    onboardedEmployeeId: {
+      type: String,
+      default: "",
     },
     enterpriseLinked: {
       type: Boolean,
@@ -131,29 +146,26 @@ const UserSchema = new Schema(
 
 export type UserDocument = InferSchemaType<typeof UserSchema> & { _id: string };
 
-const existingUserRoleValues = models.User?.schema.path("role")?.options?.enum;
-const hasDelegateUserRole =
-  Array.isArray(existingUserRoleValues) && existingUserRoleValues.includes("delegate_user");
-const hasCandidateRole =
-  Array.isArray(existingUserRoleValues) && existingUserRoleValues.includes("candidate");
 const hasCreatedByDelegatePath = Boolean(models.User?.schema.path("createdByDelegate"));
 const hasMustChangePasswordPath = Boolean(models.User?.schema.path("mustChangePassword"));
 const hasCandidateProfilePath = Boolean(models.User?.schema.path("candidateProfile"));
 const hasDigilockerProfilePath = Boolean(models.User?.schema.path("digilockerProfile"));
 const hasCountryRatesPath = Boolean(models.User?.schema.path("selectedServices.countryRates"));
 const hasEnterpriseLinkedPath = Boolean(models.User?.schema.path("enterpriseLinked"));
+const hasDeactivatedPath = Boolean(models.User?.schema.path("deactivated"));
+const hasOnboardedPath = Boolean(models.User?.schema.path("onboarded"));
 
 if (
   models.User &&
   (!models.User.schema.path("selectedServices") ||
-    !hasDelegateUserRole ||
-    !hasCandidateRole ||
     !hasCreatedByDelegatePath ||
     !hasMustChangePasswordPath ||
     !hasCandidateProfilePath ||
     !hasDigilockerProfilePath ||
     !hasCountryRatesPath ||
-    !hasEnterpriseLinkedPath)
+    !hasEnterpriseLinkedPath ||
+    !hasDeactivatedPath ||
+    !hasOnboardedPath)
 ) {
   delete models.User;
 }

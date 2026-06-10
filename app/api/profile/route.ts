@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { connectMongo } from "@/lib/mongodb";
 import User from "@/lib/models/User";
-import { getCandidateAuthFromRequest } from "@/lib/auth";
+import { getCandidateAuthFromRequest, isCandidateUser } from "@/lib/auth";
 
 const employmentSchema = z.object({
   companyName: z.string().trim().max(120).optional().default(""),
@@ -14,51 +14,58 @@ const employmentSchema = z.object({
   endDate: z.string().trim().max(40).optional().default(""),
   currentlyWorking: z.boolean().optional().default(false),
   employmentType: z.string().trim().max(80).optional().default(""),
-  description: z.string().trim().max(2000).optional().default(""),
+  description: z.string().trim().max(1000).optional().default(""),
 });
 
 const educationSchema = z.object({
-  level: z.string().trim().max(120).optional().default(""),
-  institution: z.string().trim().max(160).optional().default(""),
-  degree: z.string().trim().max(160).optional().default(""),
-  fieldOfStudy: z.string().trim().max(160).optional().default(""),
+  level: z.string().trim().max(80).optional().default(""),
+  institution: z.string().trim().max(200).optional().default(""),
+  degree: z.string().trim().max(120).optional().default(""),
+  fieldOfStudy: z.string().trim().max(120).optional().default(""),
   city: z.string().trim().max(120).optional().default(""),
   state: z.string().trim().max(120).optional().default(""),
   country: z.string().trim().max(120).optional().default(""),
-  startYear: z.string().trim().max(20).optional().default(""),
-  endYear: z.string().trim().max(20).optional().default(""),
+  startYear: z.string().trim().max(10).optional().default(""),
+  endYear: z.string().trim().max(10).optional().default(""),
   educationType: z.string().trim().max(80).optional().default(""),
-  grade: z.string().trim().max(80).optional().default(""),
+  grade: z.string().trim().max(40).optional().default(""),
 });
 
 const profileSchema = z.object({
-  keySkills: z.array(z.string().trim().min(1).max(80)).max(100).optional().default([]),
-  employment: z.array(employmentSchema).max(50).optional().default([]),
-  education: z.array(educationSchema).max(50).optional().default([]),
+  keySkills: z.array(z.string().trim().max(60)).optional().default([]),
+  employment: z.array(employmentSchema).optional().default([]),
+  education: z.array(educationSchema).optional().default([]),
 });
 
-function normalizeProfile(rawProfile: unknown) {
-  const parsed = profileSchema.safeParse(rawProfile);
-  if (!parsed.success) {
-    return {
-      keySkills: [],
-      employment: [],
-      education: [],
-    };
-  }
-
-  const keySkills = Array.from(
-    new Set(
-      parsed.data.keySkills
-        .map((skill) => skill.trim())
-        .filter((skill) => skill.length > 0),
-    ),
-  );
-
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function normalizeProfile(parsed: any) {
   return {
-    keySkills,
-    employment: parsed.data.employment,
-    education: parsed.data.education,
+    keySkills: [...new Set((parsed.keySkills ?? []).map((s: string) => s.trim()).filter(Boolean))],
+    employment: (parsed.employment ?? []).map((e: z.infer<typeof employmentSchema>) => ({
+      companyName: e.companyName || "",
+      designation: e.designation || "",
+      city: e.city || "",
+      state: e.state || "",
+      country: e.country || "",
+      startDate: e.startDate || "",
+      endDate: e.endDate || "",
+      currentlyWorking: Boolean(e.currentlyWorking),
+      employmentType: e.employmentType || "",
+      description: e.description || "",
+    })),
+    education: (parsed.education ?? []).map((edu: z.infer<typeof educationSchema>) => ({
+      level: edu.level || "",
+      institution: edu.institution || "",
+      degree: edu.degree || "",
+      fieldOfStudy: edu.fieldOfStudy || "",
+      city: edu.city || "",
+      state: edu.state || "",
+      country: edu.country || "",
+      startYear: edu.startYear || "",
+      endYear: edu.endYear || "",
+      educationType: edu.educationType || "",
+      grade: edu.grade || "",
+    })),
   };
 }
 
@@ -69,8 +76,8 @@ export async function GET(req: NextRequest) {
   }
 
   await connectMongo();
-  const user = await User.findById(auth.userId).select("role candidateProfile").lean();
-  if (!user || user.role !== "candidate") {
+  const user = await User.findById(auth.userId).select("role candidateProfile deactivated onboarded onboardedFromCandidate").lean();
+  if (!user || !isCandidateUser(user)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -100,8 +107,8 @@ export async function PUT(req: NextRequest) {
   const normalizedProfile = normalizeProfile(parsed.data);
 
   await connectMongo();
-  const user = await User.findById(auth.userId).select("_id role");
-  if (!user || user.role !== "candidate") {
+  const user = await User.findById(auth.userId).select("_id role deactivated onboarded onboardedFromCandidate");
+  if (!user || !isCandidateUser(user)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

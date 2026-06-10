@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { getCandidateAuthFromRequest } from "@/lib/auth";
+import { getCandidateAuthFromRequest, isCandidateUser } from "@/lib/auth";
 import { SUPPORTED_CURRENCIES, type SupportedCurrency } from "@/lib/currencies";
 import {
   DEFAULT_MOBILE_COUNTRY_CODE,
@@ -1197,8 +1197,8 @@ export async function GET(req: NextRequest) {
 
   await connectMongo();
 
-  const candidate = await User.findById(auth.userId).select("email role").lean();
-  if (!candidate || candidate.role !== "candidate") {
+  const candidate = await User.findById(auth.userId).select("email role deactivated onboarded onboardedFromCandidate").lean();
+  if (!candidate || !isCandidateUser(candidate)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -1408,8 +1408,8 @@ export async function PATCH(req: NextRequest) {
 
   await connectMongo();
 
-  const candidate = await User.findById(auth.userId).select("email role").lean();
-  if (!candidate || candidate.role !== "candidate") {
+  const candidate = await User.findById(auth.userId).select("email role deactivated onboarded onboardedFromCandidate").lean();
+  if (!candidate || !isCandidateUser(candidate)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

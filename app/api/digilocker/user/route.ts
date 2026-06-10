@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectMongo } from "@/lib/mongodb";
 import User from "@/lib/models/User";
-import { getCandidateAuthFromRequest } from "@/lib/auth";
+import { getCandidateAuthFromRequest, isCandidateUser } from "@/lib/auth";
 
 /**
  * GET /api/digilocker/user
@@ -15,9 +15,13 @@ export async function GET(request: NextRequest) {
   }
 
   await connectMongo();
-  const user = await User.findById(auth.userId).select("digilockerProfile").lean();
+  const user = await User.findById(auth.userId).select("role digilockerProfile deactivated onboarded onboardedFromCandidate").lean();
 
-  if (!user?.digilockerProfile?.verified) {
+  if (!user || !isCandidateUser(user)) {
+    return NextResponse.json({ linked: false, profile: null });
+  }
+
+  if (!user.digilockerProfile?.verified) {
     return NextResponse.json({ linked: false, profile: null });
   }
 
@@ -36,6 +40,11 @@ export async function DELETE(request: NextRequest) {
   }
 
   await connectMongo();
+  const user = await User.findById(auth.userId).select("role deactivated onboarded onboardedFromCandidate");
+  if (!user || !isCandidateUser(user)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   await User.updateOne(
     { _id: auth.userId },
     { $unset: { digilockerProfile: 1 } },

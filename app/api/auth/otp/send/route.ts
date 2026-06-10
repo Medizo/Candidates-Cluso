@@ -7,6 +7,7 @@ import User from "@/lib/models/User";
 import OtpToken from "@/lib/models/OtpToken";
 import { sendOtpEmail } from "@/lib/otpMail";
 import { checkRateLimit, OTP_RATE_LIMITS } from "@/lib/rateLimit";
+import { isCandidateUser } from "@/lib/auth";
 
 const schema = z.object({
   email: z.string().email(),
@@ -31,7 +32,10 @@ export async function POST(req: NextRequest) {
 
   const parsed = schema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json({ error: "Invalid email address." }, { status: 400 });
+    return NextResponse.json(
+      { error: "Invalid input. Please enter a valid email." },
+      { status: 400 },
+    );
   }
 
   const email = parsed.data.email.toLowerCase().trim();
@@ -46,7 +50,7 @@ export async function POST(req: NextRequest) {
   if (!emailLimit.allowed) {
     const retryMinutes = Math.ceil(emailLimit.retryAfterMs / 60_000);
     return NextResponse.json(
-      { error: `Too many OTP requests. Please try again in ${retryMinutes} minute(s).` },
+      { error: `Too many requests. Please try again in ${retryMinutes} minute(s).` },
       { status: 429 },
     );
   }
@@ -59,12 +63,12 @@ export async function POST(req: NextRequest) {
   if (!ipLimit.allowed) {
     const retryMinutes = Math.ceil(ipLimit.retryAfterMs / 60_000);
     return NextResponse.json(
-      { error: `Too many requests from this network. Please try again in ${retryMinutes} minute(s).` },
+      { error: `Too many requests. Please try again in ${retryMinutes} minute(s).` },
       { status: 429 },
     );
   }
 
-  // --- Check required env vars ---
+  // --- Check MONGODB_URI ---
   const hasMongoUri = Boolean(process.env.MONGODB_URI?.trim());
   if (!hasMongoUri) {
     console.error("[otp-send] Missing MONGODB_URI");
@@ -79,13 +83,13 @@ export async function POST(req: NextRequest) {
 
     // Check if the candidate account exists
     const user = await User.findOne({ email })
-      .select("_id role")
+      .select("_id role deactivated onboarded onboardedFromCandidate")
       .lean();
 
     // IMPORTANT: Always return success to prevent email enumeration.
     // If the user doesn't exist or isn't a candidate, we still return
     // the same response but simply don't send the email.
-    if (!user || user.role !== "candidate") {
+    if (!user || !isCandidateUser(user)) {
       // Simulate a small delay to prevent timing-based enumeration
       await new Promise((resolve) => setTimeout(resolve, 200 + Math.random() * 300));
       return NextResponse.json({
