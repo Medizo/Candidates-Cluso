@@ -4,6 +4,43 @@ import User from "@/lib/models/User";
 import { getCandidateAuthFromRequest } from "@/lib/auth";
 
 /**
+ * Get a reliable origin URL for redirects.
+ * On Vercel, request.url can sometimes use internal hostnames.
+ * We prefer x-forwarded-host > host header > redirect URI origin > request.url
+ */
+function getOrigin(request: NextRequest): string {
+  // Try x-forwarded-host first (set by Vercel/reverse proxies)
+  const forwardedHost = request.headers.get("x-forwarded-host");
+  const proto = request.headers.get("x-forwarded-proto") || "https";
+  if (forwardedHost) {
+    return `${proto}://${forwardedHost}`;
+  }
+
+  // Try host header
+  const host = request.headers.get("host");
+  if (host && !host.includes("localhost")) {
+    return `https://${host}`;
+  }
+
+  // Fallback: extract origin from DIGILOCKER_REDIRECT_URI
+  const redirectUri = process.env.DIGILOCKER_REDIRECT_URI;
+  if (redirectUri) {
+    try {
+      const url = new URL(redirectUri);
+      return url.origin;
+    } catch { /* ignore */ }
+  }
+
+  // Last resort: use request.url
+  try {
+    const url = new URL(request.url);
+    return url.origin;
+  } catch {
+    return "https://candidate.cluso.in";
+  }
+}
+
+/**
  * GET /api/digilocker/callback
  *
  * Handles the OAuth2 callback from DigiLocker:
@@ -60,6 +97,9 @@ export async function GET(request: NextRequest) {
   const clientId = process.env.DIGILOCKER_CLIENT_ID ?? "";
   const clientSecret = process.env.DIGILOCKER_CLIENT_SECRET ?? "";
   const redirectUri = process.env.DIGILOCKER_REDIRECT_URI ?? "";
+  const origin = getOrigin(request);
+
+  console.log("[DigiLocker] Callback hit. Origin:", origin, "request.url:", request.url);
 
   const { searchParams } = new URL(request.url);
   const code = searchParams.get("code");
@@ -70,30 +110,38 @@ export async function GET(request: NextRequest) {
   // If user denied access or DigiLocker returned an error
   if (error) {
     const msg = errorDesc || error || "Authorization denied";
+    console.error("[DigiLocker] Auth error from DigiLocker:", msg);
     return NextResponse.redirect(
-      new URL(`/dashboard?digilocker=error&message=${encodeURIComponent(msg)}`, request.url),
+      new URL(`/dashboard?digilocker=error&message=${encodeURIComponent(msg)}`, origin),
     );
   }
 
   if (!code || !state) {
+    console.error("[DigiLocker] Missing code or state. code:", !!code, "state:", !!state);
     return NextResponse.redirect(
-      new URL("/dashboard?digilocker=error&message=Missing+authorization+code", request.url),
+      new URL("/dashboard?digilocker=error&message=Missing+authorization+code", origin),
     );
   }
 
   // Validate state against cookie
   const storedState = request.cookies.get("digilocker_state")?.value;
+  console.log("[DigiLocker] State check — stored:", storedState ? "present" : "MISSING", "received:", state ? "present" : "MISSING", "match:", storedState === state);
   if (!storedState || storedState !== state) {
+    console.error("[DigiLocker] State mismatch! Cookie state:", storedState, "URL state:", state);
+    // List all cookies for debugging
+    const allCookies = request.cookies.getAll().map(c => c.name);
+    console.error("[DigiLocker] Available cookies:", allCookies);
     return NextResponse.redirect(
-      new URL("/dashboard?digilocker=error&message=Invalid+state+parameter", request.url),
+      new URL("/dashboard?digilocker=error&message=Invalid+state+parameter+(cookies+may+have+been+lost)", origin),
     );
   }
 
   // Get the logged-in candidate
   const auth = await getCandidateAuthFromRequest(request);
   if (!auth || auth.role !== "candidate") {
+    console.error("[DigiLocker] Auth check failed. auth:", auth);
     return NextResponse.redirect(
-      new URL("/dashboard?digilocker=error&message=Not+logged+in", request.url),
+      new URL("/dashboard?digilocker=error&message=Not+logged+in", origin),
     );
   }
 
@@ -121,7 +169,7 @@ export async function GET(request: NextRequest) {
       const tokenError = await tokenResponse.text();
       console.error("[DigiLocker] Token exchange failed:", tokenResponse.status, tokenError);
       return NextResponse.redirect(
-        new URL("/dashboard?digilocker=error&message=Token+exchange+failed", request.url),
+        new URL("/dashboard?digilocker=error&message=Token+exchange+failed", origin),
       );
     }
 
@@ -131,7 +179,7 @@ export async function GET(request: NextRequest) {
     if (!accessToken) {
       console.error("[DigiLocker] No access_token in response:", tokenData);
       return NextResponse.redirect(
-        new URL("/dashboard?digilocker=error&message=No+access+token+received", request.url),
+        new URL("/dashboard?digilocker=error&message=No+access+token+received", origin),
       );
     }
 
@@ -267,7 +315,7 @@ export async function GET(request: NextRequest) {
 
     // ── Step 4: Redirect back to dashboard ──
     const response = NextResponse.redirect(
-      new URL("/dashboard?digilocker=success", request.url),
+      new URL("/dashboard?digilocker=success", origin),
     );
 
     // Clear the OAuth flow cookies
@@ -282,7 +330,7 @@ export async function GET(request: NextRequest) {
   } catch (err) {
     console.error("[DigiLocker] Callback error:", err);
     return NextResponse.redirect(
-      new URL("/dashboard?digilocker=error&message=Internal+server+error", request.url),
+      new URL("/dashboard?digilocker=error&message=Internal+server+error", origin),
     );
   }
 }
