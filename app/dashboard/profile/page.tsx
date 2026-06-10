@@ -97,6 +97,7 @@ export default function CandidateProfilePage() {
   const [passwordMessage, setPasswordMessage] = useState("");
   const [changingPassword, setChangingPassword] = useState(false);
   const [highlightPasswordSection, setHighlightPasswordSection] = useState(false);
+  const [showPasswordFields, setShowPasswordFields] = useState(false);
 
   /* OTP state for password change */
   const [pwOtpStep, setPwOtpStep] = useState<"idle" | "sending" | "sent">("idle");
@@ -261,6 +262,7 @@ export default function CandidateProfilePage() {
     setPwOtpSending(false);
     setPwOtpMessage("");
     setDrawerSection("password");
+    setShowPasswordFields(false);
   }
 
   function openSkillsDrawer() {
@@ -342,7 +344,7 @@ export default function CandidateProfilePage() {
       return;
     }
 
-    const isPasswordFilled = newPassword.length > 0 || confirmPassword.length > 0;
+    const isPasswordFilled = (!me?.mustChangePassword || showPasswordFields) && (newPassword.length > 0 || confirmPassword.length > 0);
     if (isPasswordFilled) {
       if (newPassword !== confirmPassword) {
         setPasswordMessage("New password and confirm password must match.");
@@ -375,6 +377,7 @@ export default function CandidateProfilePage() {
       setNewPassword("");
       setConfirmPassword("");
       setPwOtpDigits(["", "", "", "", "", ""]);
+      setShowPasswordFields(false);
       await refreshMe(true);
       setPasswordMessage(data.message ?? "Verification successful.");
       setTimeout(() => closeDrawer(), 1200);
@@ -970,78 +973,111 @@ export default function CandidateProfilePage() {
                   </div>
                 )}
 
-                {/* New password fields */}
-                <div>
-                  <label className="drawer-field-label" htmlFor="drawer-new-password">
-                    New Password {me.mustChangePassword && <span style={{ fontWeight: "normal", color: "#64748b" }}>(optional)</span>}
-                  </label>
-                  <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
-                    <input
-                      id="drawer-new-password"
-                      className="drawer-field-input"
-                      style={{ paddingRight: "2.5rem", width: "100%" }}
-                      type={showNewPassword ? "text" : "password"}
-                      minLength={6}
-                      value={newPassword}
-                      onChange={(e) => setNewPassword(e.target.value)}
-                      required={!me.mustChangePassword}
-                    />
+                {/* Change Password toggle button */}
+                {me.mustChangePassword && !showPasswordFields && (
+                  <div style={{ display: "flex", justifyContent: "center", margin: "0.5rem 0" }}>
                     <button
                       type="button"
-                      onClick={() => setShowNewPassword((prev) => !prev)}
+                      onClick={() => setShowPasswordFields(true)}
                       style={{
-                        position: "absolute",
-                        right: "0.75rem",
-                        background: "none",
-                        border: "none",
-                        color: "var(--ink-soft)",
-                        cursor: "pointer",
                         display: "flex",
                         alignItems: "center",
-                        justifyContent: "center",
+                        gap: "0.5rem",
+                        background: "#eff6ff",
+                        border: "1px solid #bfdbfe",
+                        color: "#2563eb",
+                        padding: "0.5rem 1.25rem",
+                        borderRadius: "8px",
+                        fontSize: "0.85rem",
+                        fontWeight: 600,
+                        cursor: "pointer",
+                        transition: "background 0.2s, border-color 0.2s",
                       }}
-                      aria-label={showNewPassword ? "Hide password" : "Show password"}
+                      onMouseEnter={(e) => { e.currentTarget.style.background = "#dbeafe"; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.background = "#eff6ff"; }}
                     >
-                      {showNewPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                      <KeyRound size={15} />
+                      Change Password
                     </button>
                   </div>
-                </div>
+                )}
 
-                <div>
-                  <label className="drawer-field-label" htmlFor="drawer-confirm-password">
-                    Confirm New Password {me.mustChangePassword && <span style={{ fontWeight: "normal", color: "#64748b" }}>(optional)</span>}
-                  </label>
-                  <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
-                    <input
-                      id="drawer-confirm-password"
-                      className="drawer-field-input"
-                      style={{ paddingRight: "2.5rem", width: "100%" }}
-                      type={showConfirmPassword ? "text" : "password"}
-                      minLength={6}
-                      value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
-                      required={!me.mustChangePassword}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowConfirmPassword((prev) => !prev)}
-                      style={{
-                        position: "absolute",
-                        right: "0.75rem",
-                        background: "none",
-                        border: "none",
-                        color: "var(--ink-soft)",
-                        cursor: "pointer",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                      }}
-                      aria-label={showConfirmPassword ? "Hide password" : "Show password"}
-                    >
-                      {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                    </button>
-                  </div>
-                </div>
+                {/* New password fields */}
+                {(!me.mustChangePassword || showPasswordFields) && (
+                  <>
+                    <div>
+                      <label className="drawer-field-label" htmlFor="drawer-new-password">
+                        New Password {me.mustChangePassword && <span style={{ fontWeight: "normal", color: "#64748b" }}>(optional)</span>}
+                      </label>
+                      <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
+                        <input
+                          id="drawer-new-password"
+                          className="drawer-field-input"
+                          style={{ paddingRight: "2.5rem", width: "100%" }}
+                          type={showNewPassword ? "text" : "password"}
+                          minLength={6}
+                          value={newPassword}
+                          onChange={(e) => setNewPassword(e.target.value)}
+                          required={!me.mustChangePassword}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowNewPassword((prev) => !prev)}
+                          style={{
+                            position: "absolute",
+                            right: "0.75rem",
+                            background: "none",
+                            border: "none",
+                            color: "var(--ink-soft)",
+                            cursor: "pointer",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                          }}
+                          aria-label={showNewPassword ? "Hide password" : "Show password"}
+                        >
+                          {showNewPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="drawer-field-label" htmlFor="drawer-confirm-password">
+                        Confirm New Password {me.mustChangePassword && <span style={{ fontWeight: "normal", color: "#64748b" }}>(optional)</span>}
+                      </label>
+                      <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
+                        <input
+                          id="drawer-confirm-password"
+                          className="drawer-field-input"
+                          style={{ paddingRight: "2.5rem", width: "100%" }}
+                          type={showConfirmPassword ? "text" : "password"}
+                          minLength={6}
+                          value={confirmPassword}
+                          onChange={(e) => setConfirmPassword(e.target.value)}
+                          required={!me.mustChangePassword}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowConfirmPassword((prev) => !prev)}
+                          style={{
+                            position: "absolute",
+                            right: "0.75rem",
+                            background: "none",
+                            border: "none",
+                            color: "var(--ink-soft)",
+                            cursor: "pointer",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                          }}
+                          aria-label={showConfirmPassword ? "Hide password" : "Show password"}
+                        >
+                          {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                )}
 
                 {passwordMessage ? (
                   <p className={`inline-alert ${getAlertTone(passwordMessage)}`}>{passwordMessage}</p>
@@ -1076,12 +1112,12 @@ export default function CandidateProfilePage() {
                       disabled={changingPassword || pwOtpDigits.join("").length !== 6}
                     >
                       {changingPassword ? (
-                        me.mustChangePassword && !(newPassword.length > 0 || confirmPassword.length > 0)
+                        me.mustChangePassword && !((newPassword.length > 0 || confirmPassword.length > 0) && showPasswordFields)
                           ? "Verifying..."
                           : "Updating..."
                       ) : (
                         me.mustChangePassword
-                          ? (newPassword.length > 0 || confirmPassword.length > 0 ? "Verify & Change Password" : "Verify Code")
+                          ? (((newPassword.length > 0 || confirmPassword.length > 0) && showPasswordFields) ? "Verify & Change Password" : "Verify Code")
                           : "Change Password"
                       )}
                     </button>
