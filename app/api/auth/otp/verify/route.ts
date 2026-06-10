@@ -115,13 +115,6 @@ export async function POST(req: Request) {
       );
     }
 
-    if (user.deactivated === true) {
-      return NextResponse.json(
-        { error: "Your account has been deactivated. Please contact support." },
-        { status: 403 }
-      );
-    }
-
     if (!isCandidateUser(user)) {
       return NextResponse.json(
         { error: "Account not found." },
