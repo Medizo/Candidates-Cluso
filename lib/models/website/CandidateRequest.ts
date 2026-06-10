@@ -12,11 +12,11 @@ interface ICandidateRequest {
   name: string;
   email: string;
   phone: string;
-  jobId?: string;
+  jobId?: any;
   jobTitle?: string;
   jobColor?: string;
   jobDescription?: string;
-  resumeDocumentId: string;
+  resumeDocumentId: any;
   resumeFileName: string;
   read: boolean;
   createdAt: Date;
