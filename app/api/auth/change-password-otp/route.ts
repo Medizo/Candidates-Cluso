@@ -10,7 +10,7 @@ const MAX_OTP_ATTEMPTS = 5;
 
 const schema = z.object({
   otp: z.string().length(6).regex(/^\d{6}$/),
-  newPassword: z.string().min(6),
+  newPassword: z.string().min(6).optional().or(z.literal("")),
 });
 
 export async function POST(req: NextRequest) {
@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
   const parsed = schema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json(
-      { error: "Invalid input. Please enter a valid 6-digit OTP and a password of at least 6 characters." },
+      { error: "Invalid input. Please enter a valid 6-digit OTP." },
       { status: 400 },
     );
   }
@@ -96,12 +96,16 @@ export async function POST(req: NextRequest) {
   // OTP is valid — delete all OTP tokens for this email
   await OtpToken.deleteMany({ email });
 
-  // Update the password
-  const newHash = await bcrypt.hash(parsed.data.newPassword, 10);
-  user.passwordHash = newHash;
-  user.password = newHash;
+  // Update the password if provided
+  if (parsed.data.newPassword) {
+    const newHash = await bcrypt.hash(parsed.data.newPassword, 10);
+    user.passwordHash = newHash;
+    user.password = newHash;
+  }
   user.mustChangePassword = false;
   await user.save();
 
-  return NextResponse.json({ message: "Password changed successfully." });
+  return NextResponse.json({
+    message: parsed.data.newPassword ? "Password changed successfully." : "Verification successful."
+  });
 }

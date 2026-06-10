@@ -342,9 +342,16 @@ export default function CandidateProfilePage() {
       return;
     }
 
-    if (newPassword !== confirmPassword) {
-      setPasswordMessage("New password and confirm password must match.");
-      return;
+    const isPasswordFilled = newPassword.length > 0 || confirmPassword.length > 0;
+    if (isPasswordFilled) {
+      if (newPassword !== confirmPassword) {
+        setPasswordMessage("New password and confirm password must match.");
+        return;
+      }
+      if (newPassword.length < 6) {
+        setPasswordMessage("Password must be at least 6 characters long.");
+        return;
+      }
     }
 
     setChangingPassword(true);
@@ -352,13 +359,13 @@ export default function CandidateProfilePage() {
       const res = await fetch("/api/auth/change-password-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ otp, newPassword }),
+        body: JSON.stringify({ otp, newPassword: isPasswordFilled ? newPassword : "" }),
       });
 
       const data = (await res.json()) as { message?: string; error?: string };
 
       if (!res.ok) {
-        setPasswordMessage(data.error ?? "Could not change password.");
+        setPasswordMessage(data.error ?? "Could not verify.");
         // Clear OTP digits on failure so user can re-enter
         setPwOtpDigits(["", "", "", "", "", ""]);
         setTimeout(() => pwOtpRefs.current[0]?.focus(), 50);
@@ -369,7 +376,7 @@ export default function CandidateProfilePage() {
       setConfirmPassword("");
       setPwOtpDigits(["", "", "", "", "", ""]);
       await refreshMe(true);
-      setPasswordMessage(data.message ?? "Password changed successfully.");
+      setPasswordMessage(data.message ?? "Verification successful.");
       setTimeout(() => closeDrawer(), 1200);
     } catch {
       setPasswordMessage("Could not reach server. Please try again.");
@@ -485,7 +492,7 @@ export default function CandidateProfilePage() {
   let drawerIcon = null as React.ReactNode;
 
   if (drawerSection === "password") {
-    drawerTitle = "Change Password";
+    drawerTitle = me.mustChangePassword ? "Verify Account" : "Change Password";
     drawerIcon = <KeyRound size={18} />;
   } else if (drawerSection === "skills") {
     drawerTitle = "Edit Key Skills";
@@ -645,7 +652,7 @@ export default function CandidateProfilePage() {
                 fontSize: "0.86rem",
                 fontWeight: 500,
               }}>
-                This is your first login. Please change your password to continue.
+                This is your first login. Please verify your email with a verification code to continue.
               </p>
             ) : (
               <p className="profile-empty-state">
@@ -840,7 +847,7 @@ export default function CandidateProfilePage() {
                 color: "#92400e",
                 fontSize: "0.86rem",
               }}>
-                This is your first login. Please change your password to continue using the portal.
+                This is your first login. Please verify your email with a verification code to continue using the portal. Changing your password is optional.
               </p>
             ) : null}
 
@@ -966,7 +973,7 @@ export default function CandidateProfilePage() {
                 {/* New password fields */}
                 <div>
                   <label className="drawer-field-label" htmlFor="drawer-new-password">
-                    New Password
+                    New Password {me.mustChangePassword && <span style={{ fontWeight: "normal", color: "#64748b" }}>(optional)</span>}
                   </label>
                   <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
                     <input
@@ -977,7 +984,7 @@ export default function CandidateProfilePage() {
                       minLength={6}
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
-                      required
+                      required={!me.mustChangePassword}
                     />
                     <button
                       type="button"
@@ -1002,7 +1009,7 @@ export default function CandidateProfilePage() {
 
                 <div>
                   <label className="drawer-field-label" htmlFor="drawer-confirm-password">
-                    Confirm New Password
+                    Confirm New Password {me.mustChangePassword && <span style={{ fontWeight: "normal", color: "#64748b" }}>(optional)</span>}
                   </label>
                   <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
                     <input
@@ -1013,7 +1020,7 @@ export default function CandidateProfilePage() {
                       minLength={6}
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
-                      required
+                      required={!me.mustChangePassword}
                     />
                     <button
                       type="button"
@@ -1068,7 +1075,15 @@ export default function CandidateProfilePage() {
                       type="submit"
                       disabled={changingPassword || pwOtpDigits.join("").length !== 6}
                     >
-                      {changingPassword ? "Updating..." : "Change Password"}
+                      {changingPassword ? (
+                        me.mustChangePassword && !(newPassword.length > 0 || confirmPassword.length > 0)
+                          ? "Verifying..."
+                          : "Updating..."
+                      ) : (
+                        me.mustChangePassword
+                          ? (newPassword.length > 0 || confirmPassword.length > 0 ? "Verify & Change Password" : "Verify Code")
+                          : "Change Password"
+                      )}
                     </button>
                   </div>
                 </div>
