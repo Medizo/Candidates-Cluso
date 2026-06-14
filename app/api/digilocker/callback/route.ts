@@ -54,22 +54,47 @@ function formatDOBToDDMMYYYY(dobStr: string): string {
   if (!dobStr) return "";
   const cleaned = dobStr.trim();
   
-  // 1. Matches DD-MM-YYYY or DD/MM/YYYY
+  // 1. Matches DD-MM-YYYY, DD/MM/YYYY, MM-DD-YYYY, or MM/DD/YYYY
   const dmYMatch = cleaned.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})$/);
   if (dmYMatch) {
-    const day = dmYMatch[1].padStart(2, "0");
-    const month = dmYMatch[2].padStart(2, "0");
+    const val1 = parseInt(dmYMatch[1], 10);
+    const val2 = parseInt(dmYMatch[2], 10);
     const year = dmYMatch[3];
-    return `${day}-${month}-${year}`;
+    
+    let day = val1;
+    let month = val2;
+    
+    // If the second value is greater than 12, it must be the day (MM-DD-YYYY)
+    if (val2 > 12) {
+      day = val2;
+      month = val1;
+    }
+    // If the first value is greater than 12, it must be the day (DD-MM-YYYY)
+    else if (val1 > 12) {
+      day = val1;
+      month = val2;
+    }
+    
+    return `${String(day).padStart(2, "0")}-${String(month).padStart(2, "0")}-${year}`;
   }
 
   // 2. Matches YYYY-MM-DD or YYYY/MM/DD
   const YmdMatch = cleaned.match(/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})$/);
   if (YmdMatch) {
     const year = YmdMatch[1];
-    const month = YmdMatch[2].padStart(2, "0");
-    const day = YmdMatch[3].padStart(2, "0");
-    return `${day}-${month}-${year}`;
+    const val1 = parseInt(YmdMatch[2], 10);
+    const val2 = parseInt(YmdMatch[3], 10);
+    
+    let month = val1;
+    let day = val2;
+    
+    // If the first value is greater than 12, it must be the day (YYYY-DD-MM)
+    if (val1 > 12) {
+      day = val1;
+      month = val2;
+    }
+    
+    return `${String(day).padStart(2, "0")}-${String(month).padStart(2, "0")}-${year}`;
   }
 
   // 3. Matches 8 consecutive digits
@@ -78,14 +103,26 @@ function formatDOBToDDMMYYYY(dobStr: string): string {
     const yearNum = parseInt(part1, 10);
     if (yearNum >= 1900 && yearNum <= 2100) {
       const year = part1;
-      const month = cleaned.substring(4, 6);
-      const day = cleaned.substring(6, 8);
-      return `${day}-${month}-${year}`;
+      const val1 = parseInt(cleaned.substring(4, 6), 10);
+      const val2 = parseInt(cleaned.substring(6, 8), 10);
+      let month = val1;
+      let day = val2;
+      if (val1 > 12) {
+        day = val1;
+        month = val2;
+      }
+      return `${String(day).padStart(2, "0")}-${String(month).padStart(2, "0")}-${year}`;
     } else {
-      const day = cleaned.substring(0, 2);
-      const month = cleaned.substring(2, 4);
+      const val1 = parseInt(cleaned.substring(0, 2), 10);
+      const val2 = parseInt(cleaned.substring(2, 4), 10);
       const year = cleaned.substring(4, 8);
-      return `${day}-${month}-${year}`;
+      let day = val1;
+      let month = val2;
+      if (val2 > 12) {
+        day = val2;
+        month = val1;
+      }
+      return `${String(day).padStart(2, "0")}-${String(month).padStart(2, "0")}-${year}`;
     }
   }
 
