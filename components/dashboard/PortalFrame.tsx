@@ -28,6 +28,8 @@ import {
   ChevronLeft,
   ChevronRight,
   KeyRound,
+  Award,
+  Download,
   type LucideIcon,
 } from "lucide-react";
 import { ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -103,6 +105,20 @@ const allNavItems: IconNavItem[] = [
       text: "text-violet-800 dark:text-violet-300",
       iconColor: "text-violet-600 dark:text-violet-400",
       gradient: "from-violet-500 to-fuchsia-400",
+    }
+  },
+  { 
+    href: "/dashboard/certificates", 
+    label: "Certificates", 
+    icon: Award,
+    description: "View and download certificates and letters issued to you.",
+    subIcons: [Award, Download],
+    theme: {
+      bg: "bg-amber-50 dark:bg-amber-900/40",
+      border: "border-amber-200 dark:border-amber-800",
+      text: "text-amber-800 dark:text-amber-300",
+      iconColor: "text-amber-600 dark:text-amber-400",
+      gradient: "from-amber-500 to-yellow-400",
     }
   },
   { 
