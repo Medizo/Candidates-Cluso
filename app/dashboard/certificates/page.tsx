@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo, Suspense } from "react";
+import { useEffect, useState, useMemo, Suspense, useRef } from "react";
 import { usePortalSession } from "@/lib/hooks/usePortalSession";
 import { PortalFrame } from "@/components/dashboard/PortalFrame";
 import { LoadingScreen } from "@/components/ui/LoadingScreen";
@@ -20,11 +20,14 @@ import {
   FileText,
   User,
   ShieldAlert,
+  Eye,
+  X,
 } from "lucide-react";
 
 // Types from admin portal
 interface Certificate {
   id: string;
+  companyName?: string;
   type: string;
   category?: string;
   recipientId?: string;
@@ -94,6 +97,7 @@ function generateCertBody({
   dateFrom,
   dateTo,
   remarks,
+  companyName,
 }: {
   type: string;
   category?: string;
@@ -103,6 +107,7 @@ function generateCertBody({
   dateFrom?: string;
   dateTo?: string;
   remarks?: string;
+  companyName?: string;
 }) {
   const name = recipientName || "[Recipient Name]";
   const designation = recipientDesignation || "[Designation]";
@@ -110,40 +115,41 @@ function generateCertBody({
   const fromDate = dateFrom ? formatDateDisplay(dateFrom) : "[Start Date]";
   const toDate = dateTo ? formatDateDisplay(dateTo) : "[End Date]";
   const qualities = remarks || "hardworking, diligent, and honest in performing their duties";
+  const company = companyName || "Cluso Infolink";
 
   if (type === "excellence") {
-    return `This is to certify that <strong>${name}</strong>, serving as ${aOrAn(designation)} <strong>${designation}</strong> at Cluso Infolink, has demonstrated exceptional performance, dedication, and outstanding contributions to the organization. ${name} has consistently exceeded expectations, shown remarkable initiative, and inspired excellence among peers.<br/><br/>The management extends its sincere appreciation for the exemplary work and unwavering commitment shown by ${name}. We recognize this achievement under the mentorship of <strong>${guide}</strong>.<br/><br/>We wish ${name} continued success and look forward to many more accomplishments.`;
+    return `This is to certify that <strong>${name}</strong>, serving as ${aOrAn(designation)} <strong>${designation}</strong> at ${company}, has demonstrated exceptional performance, dedication, and outstanding contributions to the organization. ${name} has consistently exceeded expectations, shown remarkable initiative, and inspired excellence among peers.<br/><br/>The management extends its sincere appreciation for the exemplary work and unwavering commitment shown by ${name}. We recognize this achievement under the mentorship of <strong>${guide}</strong>.<br/><br/>We wish ${name} continued success and look forward to many more accomplishments.`;
   }
 
   if (type === "relieving") {
-    return `This is to certify that <strong>${name}</strong> was employed at Cluso Infolink as ${aOrAn(designation)} <strong>${designation}</strong> from <strong>${fromDate}</strong> to <strong>${toDate}</strong>. ${name} has resigned from the services of the company and is officially relieved from all duties and responsibilities with effect from the close of business hours on <strong>${toDate}</strong>.<br/><br/>During their tenure with us, ${name} demonstrated professionalism, integrity, and a strong work ethic. They worked under the supervision of <strong>${guide}</strong> and were found to be ${qualities}.<br/><br/>We thank ${name} for their contributions and wish them the very best in all future professional endeavors.`;
+    return `This is to certify that <strong>${name}</strong> was employed at ${company} as ${aOrAn(designation)} <strong>${designation}</strong> from <strong>${fromDate}</strong> to <strong>${toDate}</strong>. ${name} has resigned from the services of the company and is officially relieved from all duties and responsibilities with effect from the close of business hours on <strong>${toDate}</strong>.<br/><br/>During their tenure with us, ${name} demonstrated professionalism, integrity, and a strong work ethic. They worked under the supervision of <strong>${guide}</strong> and were found to be ${qualities}.<br/><br/>We thank ${name} for their contributions and wish them the very best in all future professional endeavors.`;
   }
 
   if (type === "completion") {
     if (category === "internship") {
-      return `This is to certify that <strong>${name}</strong> has successfully completed their Internship at Cluso Infolink as ${aOrAn(designation)} <strong>${designation}</strong> from <strong>${fromDate}</strong> to <strong>${toDate}</strong>.<br/><br/>During their internship, they interned under the guidance of <strong>${guide}</strong> and were found to be ${qualities}.<br/><br/>The management would like to thank ${name} for the contributions made to the organization and wishes them all the best in their future endeavors.`;
+      return `This is to certify that <strong>${name}</strong> has successfully completed their Internship at ${company} as ${aOrAn(designation)} <strong>${designation}</strong> from <strong>${fromDate}</strong> to <strong>${toDate}</strong>.<br/><br/>During their internship, they interned under the guidance of <strong>${guide}</strong> and were found to be ${qualities}.<br/><br/>The management would like to thank ${name} for the contributions made to the organization and wishes them all the best in their future endeavors.`;
     }
     if (category === "employment") {
-      return `This is to certify that <strong>${name}</strong> was employed at Cluso Infolink as ${aOrAn(designation)} <strong>${designation}</strong> from <strong>${fromDate}</strong> to <strong>${toDate}</strong>.<br/><br/>During their tenure with us, ${name} demonstrated professionalism, integrity, and a strong work ethic. They worked under the supervision of <strong>${guide}</strong> and were found to be ${qualities}.<br/><br/>We wish ${name} continued success in their career and thank them for their valuable contributions.`;
+      return `This is to certify that <strong>${name}</strong> was employed at ${company} as ${aOrAn(designation)} <strong>${designation}</strong> from <strong>${fromDate}</strong> to <strong>${toDate}</strong>.<br/><br/>During their tenure with us, ${name} demonstrated professionalism, integrity, and a strong work ethic. They worked under the supervision of <strong>${guide}</strong> and were found to be ${qualities}.<br/><br/>We wish ${name} continued success in their career and thank them for their valuable contributions.`;
     }
     if (category === "course") {
-      return `This is to certify that <strong>${name}</strong> has successfully completed the professional development course at Cluso Infolink from <strong>${fromDate}</strong> to <strong>${toDate}</strong>.<br/><br/>The course was conducted under the mentorship of <strong>${guide}</strong>. Throughout the program, ${name} demonstrated ${qualities} and successfully met all the requirements for course completion.<br/><br/>We congratulate ${name} on this accomplishment and wish them success in applying their newly acquired knowledge.`;
+      return `This is to certify that <strong>${name}</strong> has successfully completed the professional development course at ${company} from <strong>${fromDate}</strong> to <strong>${toDate}</strong>.<br/><br/>The course was conducted under the mentorship of <strong>${guide}</strong>. Throughout the program, ${name} demonstrated ${qualities} and successfully met all the requirements for course completion.<br/><br/>We congratulate ${name} on this accomplishment and wish them success in applying their newly acquired knowledge.`;
     }
     if (category === "training") {
-      return `This is to certify that <strong>${name}</strong>, serving as ${aOrAn(designation)} <strong>${designation}</strong>, has successfully completed the specialized training program at Cluso Infolink from <strong>${fromDate}</strong> to <strong>${toDate}</strong>.<br/><br/>The training was conducted under the guidance of <strong>${guide}</strong>. During the program, ${name} exhibited ${qualities} and demonstrated strong aptitude in mastering the required skills.<br/><br/>The management congratulates ${name} on the successful completion of this training.`;
+      return `This is to certify that <strong>${name}</strong>, serving as ${aOrAn(designation)} <strong>${designation}</strong>, has successfully completed the specialized training program at ${company} from <strong>${fromDate}</strong> to <strong>${toDate}</strong>.<br/><br/>The training was conducted under the guidance of <strong>${guide}</strong>. During the program, ${name} exhibited ${qualities} and demonstrated strong aptitude in mastering the required skills.<br/><br/>The management congratulates ${name} on the successful completion of this training.`;
     }
     if (category === "project") {
-      return `This is to certify that <strong>${name}</strong>, serving as ${aOrAn(designation)} <strong>${designation}</strong>, has successfully delivered and completed the assigned project at Cluso Infolink from <strong>${fromDate}</strong> to <strong>${toDate}</strong>.<br/><br/>The project was overseen by <strong>${guide}</strong>. Throughout the project lifecycle, ${name} demonstrated ${qualities} and played a pivotal role in its successful delivery.<br/><br/>The management extends its appreciation for the outstanding effort and dedication shown.`;
+      return `This is to certify that <strong>${name}</strong>, serving as ${aOrAn(designation)} <strong>${designation}</strong>, has successfully delivered and completed the assigned project at ${company} from <strong>${fromDate}</strong> to <strong>${toDate}</strong>.<br/><br/>The project was overseen by <strong>${guide}</strong>. Throughout the project lifecycle, ${name} demonstrated ${qualities} and played a pivotal role in its successful delivery.<br/><br/>The management extends its appreciation for the outstanding effort and dedication shown.`;
     }
-    return `This is to certify that <strong>${name}</strong> has successfully completed the assigned program at Cluso Infolink from <strong>${fromDate}</strong> to <strong>${toDate}</strong> under the guidance of <strong>${guide}</strong>.<br/><br/>During the program, ${name} was found to be ${qualities}.<br/><br/>We wish ${name} the very best in all future endeavors.`;
+    return `This is to certify that <strong>${name}</strong> has successfully completed the assigned program at ${company} from <strong>${fromDate}</strong> to <strong>${toDate}</strong> under the guidance of <strong>${guide}</strong>.<br/><br/>During the program, ${name} was found to be ${qualities}.<br/><br/>We wish ${name} the very best in all future endeavors.`;
   }
 
   if (type === "appreciation") {
-    return `This is to certify that <strong>${name}</strong>, serving as ${aOrAn(designation)} <strong>${designation}</strong> at Cluso Infolink, is being recognized for their dedicated service, exceptional commitment, and positive contributions to the organization.<br/><br/>${name} has worked under the guidance of <strong>${guide}</strong> and has consistently demonstrated ${qualities}. Their efforts have made a meaningful impact on the team and the organization as a whole.<br/><br/>The management expresses heartfelt gratitude for the outstanding service and looks forward to continued collaboration.`;
+    return `This is to certify that <strong>${name}</strong>, serving as ${aOrAn(designation)} <strong>${designation}</strong> at ${company}, is being recognized for their dedicated service, exceptional commitment, and positive contributions to the organization.<br/><br/>${name} has worked under the guidance of <strong>${guide}</strong> and has consistently demonstrated ${qualities}. Their efforts have made a meaningful impact on the team and the organization as a whole.<br/><br/>The management expresses heartfelt gratitude for the outstanding service and looks forward to continued collaboration.`;
   }
 
   if (type === "achievement") {
-    return `This is to certify that <strong>${name}</strong>, serving as ${aOrAn(designation)} <strong>${designation}</strong> at Cluso Infolink, has achieved a significant milestone that reflects their talent, perseverance, and dedication.<br/><br/>This achievement was accomplished under the mentorship of <strong>${guide}</strong>. During this period, ${name} demonstrated ${qualities} and set a commendable example for peers.<br/><br/>The management congratulates ${name} on this accomplishment and wishes them continued success in their professional journey.`;
+    return `This is to certify that <strong>${name}</strong>, serving as ${aOrAn(designation)} <strong>${designation}</strong> at ${company}, has achieved a significant milestone that reflects their talent, perseverance, and dedication.<br/><br/>This achievement was accomplished under the mentorship of <strong>${guide}</strong>. During this period, ${name} demonstrated ${qualities} and set a commendable example for peers.<br/><br/>The management congratulates ${name} on this accomplishment and wishes them continued success in their professional journey.`;
   }
 
   return "";
@@ -166,8 +172,10 @@ function renderCertificateHTML({
   id,
   qrCode,
   createdAt,
+  companyName,
 }: Certificate & { qrCode?: string }) {
   const title = getCertTitle(type, category);
+  const company = companyName || "Cluso Infolink";
   const bodyHtml = generateCertBody({
     type,
     category,
@@ -177,6 +185,7 @@ function renderCertificateHTML({
     dateFrom,
     dateTo,
     remarks,
+    companyName: company,
   });
   const fromDate = dateFrom ? formatDateDisplay(dateFrom) : "";
   const toDate = dateTo ? formatDateDisplay(dateTo) : "";
@@ -198,9 +207,9 @@ function renderCertificateHTML({
           </div>
           <div>
             <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 12px;">
-              <img src="${LOGO_BASE64}" alt="Cluso Infolink Logo" style="height: 38px; width: auto; object-fit: contain;" />
+              <img src="${LOGO_BASE64}" alt="${company} Logo" style="height: 38px; width: auto; object-fit: contain;" />
               <div style="text-align: right; font-size: 10px; color: #7c5e3f; line-height: 1.4; font-family: 'Georgia', serif; font-style: italic;">
-                <strong>Cluso Infolink</strong><br/>
+                <strong>${company}</strong><br/>
                 Web: www.cluso.in | Email: indiaops@cluso.in
               </div>
             </div>
@@ -228,7 +237,7 @@ function renderCertificateHTML({
           <div>
             <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 32px;">
               <div style="font-size: 13px; color: #2a1f14;">
-                <div style="margin-bottom: 8px;">For <strong>Cluso Infolink</strong>,</div>
+                <div style="margin-bottom: 8px;">For <strong>${company}</strong>,</div>
                 <div style="height: 44px; display: flex; align-items: flex-end; margin-bottom: 8px;">
                   ${respondentSignature ? `<img src="${respondentSignature}" alt="Signature" style="max-height: 44px; width: auto; object-fit: contain;" />` : '<div style="height: 44px;"></div>'}
                 </div>
@@ -246,7 +255,7 @@ function renderCertificateHTML({
               ` : ""}
             </div>
             <div style="text-align: center; border-top: 1px solid #e2d2be; padding-top: 10px; font-size: 9px; color: #a3907e;">
-              Cluso Infolink • Private & Confidential
+              ${company} • Private & Confidential
             </div>
           </div>
         </div>
@@ -262,9 +271,9 @@ function renderCertificateHTML({
           </div>
           <div>
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-              <img src="${LOGO_BASE64}" alt="Cluso Infolink Logo" style="height: 34px; width: auto; object-fit: contain;" />
+              <img src="${LOGO_BASE64}" alt="${company} Logo" style="height: 34px; width: auto; object-fit: contain;" />
               <div style="text-align: right; font-size: 10px; color: #64748b; line-height: 1.4;">
-                <span style="font-weight: 700; color: #0f172a;">Cluso Infolink</span><br/>
+                <span style="font-weight: 700; color: #0f172a;">${company}</span><br/>
                 Web: www.cluso.in | Email: indiaops@cluso.in
               </div>
             </div>
@@ -310,7 +319,7 @@ function renderCertificateHTML({
               ` : ""}
             </div>
             <div style="text-align: center; border-top: 1px solid #f1f5f9; padding-top: 10px; font-size: 9px; color: #94a3b8; font-weight: 500;">
-              Cluso Infolink • Confidential & Official Document
+              ${company} • Confidential & Official Document
             </div>
           </div>
         </div>
@@ -327,10 +336,10 @@ function renderCertificateHTML({
           <div>
             <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px;">
               <div style="display: inline-block; background: #ffffff; border: 1px solid rgba(201, 168, 76, 0.25); padding: 3px 10px; border-radius: 4px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
-                <img src="${LOGO_BASE64}" alt="Cluso Infolink Logo" style="height: 28px; width: auto; display: block; object-fit: contain;" />
+                <img src="${LOGO_BASE64}" alt="${company} Logo" style="height: 28px; width: auto; display: block; object-fit: contain;" />
               </div>
               <div style="text-align: right; font-size: 10px; color: #1e1b4b; line-height: 1.4;">
-                <strong style="color: #c9a84c; text-transform: uppercase; letter-spacing: 0.5px;">Cluso Infolink</strong><br/>
+                <strong style="color: #c9a84c; text-transform: uppercase; letter-spacing: 0.5px;">${company}</strong><br/>
                 <span style="color: #64748b;">HQ: Bangalore, India<br/>
                 Web: www.cluso.in | Email: indiaops@cluso.in</span>
               </div>
@@ -359,7 +368,7 @@ function renderCertificateHTML({
           <div>
             <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 24px;">
               <div style="font-size: 13px; color: #1e1b4b;">
-                <div style="margin-bottom: 8px;">For <strong>Cluso Infolink</strong>,</div>
+                <div style="margin-bottom: 8px;">For <strong>${company}</strong>,</div>
                 <div style="height: 46px; display: flex; align-items: flex-end; margin-bottom: 8px;">
                   ${respondentSignature ? `
                     <div style="display: inline-block; background: #ffffff; padding: 2px 6px; border-radius: 4px; border: 1px solid rgba(201, 168, 76, 0.15); box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
@@ -381,7 +390,7 @@ function renderCertificateHTML({
               ` : ""}
             </div>
             <div style="text-align: center; border-top: 1px solid #e2e8f0; padding-top: 10px; font-size: 9px; color: #94a3b8; letter-spacing: 0.5px; text-transform: uppercase;">
-              Cluso Infolink Private Limited • Strictly Confidential
+              ${company} Private Limited • Strictly Confidential
             </div>
           </div>
         </div>
@@ -402,7 +411,7 @@ function renderCertificateHTML({
           </div>
           <div>
             <div style="text-align: left; margin-bottom: 8px; padding-left: 6px;">
-              <img src="${LOGO_BASE64}" alt="Cluso Infolink Logo" style="height: 40px; width: auto; object-fit: contain; display: block;" />
+              <img src="${LOGO_BASE64}" alt="${company} Logo" style="height: 40px; width: auto; object-fit: contain; display: block;" />
             </div>
             <div style="width: 100%; height: 1px; background: linear-gradient(90deg, #c29b76, transparent); margin: 0 0 10px; padding-left: 6px;"></div>
           </div>
@@ -451,7 +460,7 @@ function renderCertificateHTML({
         <div style="padding: 30px 40px 24px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between; height: 100%;">
           <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-shrink: 0;">
             <div>
-              <img src="${LOGO_BASE64}" alt="Cluso Infolink Logo" style="height: 36px; width: auto; object-fit: contain; display: block;" />
+              <img src="${LOGO_BASE64}" alt="${company} Logo" style="height: 36px; width: auto; object-fit: contain; display: block;" />
             </div>
             <div style="font-size: 8px; font-weight: 500; font-family: sans-serif; color: #64748b; text-align: right; padding-top: 4px; opacity: 0.75;">
               Cert No: <span style="color: #0f172a; text-transform: uppercase; letter-spacing: 0.5px;">${id || ""}</span>
@@ -508,7 +517,7 @@ function renderCertificateHTML({
           <div style="position: absolute; top: 16px; right: 16px; width: 90px; height: 90px; border: 1px solid rgba(201, 168, 76, 0.1); border-radius: 50%; pointer-events: none; z-index: 1;"></div>
           <div style="text-align: left; flex-shrink: 0; z-index: 2;">
             <div style="display: inline-block; background: #ffffff; padding: 4px 14px; border-radius: 6px; border: 1px solid rgba(201, 168, 76, 0.35); box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
-              <img src="${LOGO_BASE64}" alt="Cluso Infolink Logo" style="height: 32px; width: auto; display: block; object-fit: contain;" />
+              <img src="${LOGO_BASE64}" alt="${company} Logo" style="height: 32px; width: auto; display: block; object-fit: contain;" />
             </div>
           </div>
           <div style="width: 100%; height: 1px; background: linear-gradient(90deg, #c9a84c, transparent); margin: 10px 0; z-index: 2;"></div>
@@ -568,6 +577,49 @@ function CertificatesContent() {
   const [errorMsg, setErrorMsg] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [downloadingCert, setDownloadingCert] = useState<(Certificate & { qrCode?: string }) | null>(null);
+  const [previewCert, setPreviewCert] = useState<(Certificate & { qrCode?: string }) | null>(null);
+  const [previewScale, setPreviewScale] = useState(1);
+  const previewContainerRef = useRef<HTMLDivElement>(null);
+
+  const handlePreview = async (cert: Certificate) => {
+    let qrCode = "";
+    try {
+      qrCode = await QRCode.toDataURL(cert.id, {
+        margin: 1,
+        width: 150,
+        color: {
+          dark: "#000000",
+          light: "#ffffff",
+        },
+      });
+    } catch (e) {
+      console.error("Failed to generate QR code for preview", e);
+    }
+    setPreviewCert({ ...cert, qrCode });
+  };
+
+  useEffect(() => {
+    if (!previewCert) return;
+    const handleResize = () => {
+      if (!previewContainerRef.current) return;
+      const parentWidth = previewContainerRef.current.clientWidth;
+      const certWidth = previewCert.type === "relieving" ? 640 : 800;
+      if (parentWidth < certWidth) {
+        setPreviewScale(parentWidth / certWidth);
+      } else {
+        setPreviewScale(1);
+      }
+    };
+
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    const timer = setTimeout(handleResize, 50);
+
+    return () => {
+      window.removeEventListener("resize", handleResize);
+      clearTimeout(timer);
+    };
+  }, [previewCert]);
 
   useEffect(() => {
     if (!me) return;
@@ -608,6 +660,24 @@ function CertificatesContent() {
     );
   }, [certs, searchQuery]);
 
+  // Helper: fix gradient backgrounds for html2canvas (it crashes on linear-gradient
+  // applied to very thin elements, producing a 0-dimension canvas pattern).
+  function fixGradientsForCapture(container: HTMLElement) {
+    const saved: { el: HTMLElement; bg: string }[] = [];
+    container.querySelectorAll<HTMLElement>('*').forEach(el => {
+      const bg = el.style.background || '';
+      if (bg.includes('linear-gradient') || bg.includes('radial-gradient')) {
+        saved.push({ el, bg });
+        const colors = bg.match(/#[0-9a-fA-F]{3,8}|rgba?\([^)]+\)/g);
+        el.style.background = colors && colors.length > 0 ? colors[colors.length - 1] : 'transparent';
+      }
+    });
+    return saved;
+  }
+  function restoreGradients(saved: { el: HTMLElement; bg: string }[]) {
+    saved.forEach(({ el, bg }) => { el.style.background = bg; });
+  }
+
   const handleDownload = async (cert: Certificate) => {
     let qrCode = "";
     try {
@@ -626,7 +696,7 @@ function CertificatesContent() {
     setDownloadingCert({ ...cert, qrCode });
 
     // Wait briefly for DOM to render the container
-    await new Promise((resolve) => setTimeout(resolve, 350));
+    await new Promise((resolve) => setTimeout(resolve, 400));
 
     try {
       const element = document.getElementById("certificate-download-target");
@@ -638,25 +708,30 @@ function CertificatesContent() {
             ? "#fffdf7"
             : "#ffffff";
 
-        const canvas = await html2canvas(element, {
-          scale: 2,
-          useCORS: true,
-          allowTaint: true,
-          backgroundColor: bgCol,
-        });
+        const saved = fixGradientsForCapture(element);
+        try {
+          const canvas = await html2canvas(element, {
+            scale: 2,
+            useCORS: true,
+            allowTaint: true,
+            backgroundColor: bgCol,
+          });
 
-        const imgData = canvas.toDataURL("image/jpeg", 0.85);
-        const pdf = new jsPDF({
-          orientation: canvas.width > canvas.height ? "landscape" : "portrait",
-          unit: "px",
-          format: [canvas.width, canvas.height],
-        });
+          const imgData = canvas.toDataURL("image/jpeg", 0.85);
+          const pdf = new jsPDF({
+            orientation: canvas.width > canvas.height ? "landscape" : "portrait",
+            unit: "px",
+            format: [canvas.width, canvas.height],
+          });
 
-        pdf.addImage(imgData, "JPEG", 0, 0, canvas.width, canvas.height);
-        const filename = `${cert.recipientName.replace(/\s+/g, "_")}_${
-          cert.type === "relieving" ? "Relieving_Letter" : "Certificate"
-        }.pdf`;
-        pdf.save(filename);
+          pdf.addImage(imgData, "JPEG", 0, 0, canvas.width, canvas.height);
+          const filename = `${cert.recipientName.replace(/\s+/g, "_")}_${
+            cert.type === "relieving" ? "Relieving_Letter" : "Certificate"
+          }.pdf`;
+          pdf.save(filename);
+        } finally {
+          restoreGradients(saved);
+        }
       } else {
         alert("Failed to locate certificate container for download.");
       }
@@ -791,13 +866,20 @@ function CertificatesContent() {
                     </div>
                   </div>
 
-                  <div className="mt-6">
+                  <div className="mt-6 grid grid-cols-2 gap-3">
+                    <button
+                      onClick={() => handlePreview(cert)}
+                      className="flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl border border-slate-200 dark:border-slate-800 dark:bg-slate-900 bg-white hover:bg-slate-50 dark:hover:bg-slate-800 hover:border-amber-500 text-[13px] font-bold text-slate-700 dark:text-slate-200 shadow-sm transition-all duration-200 cursor-pointer"
+                    >
+                      <Eye size={15} />
+                      View
+                    </button>
                     <button
                       onClick={() => handleDownload(cert)}
-                      className="w-full flex items-center justify-center gap-2 py-2 px-4 rounded-xl border border-slate-200 dark:border-slate-800 dark:bg-slate-900 bg-white hover:bg-slate-50 dark:hover:bg-slate-800 hover:border-amber-500 text-[13px] font-bold text-slate-700 dark:text-slate-200 shadow-sm transition-all duration-200 cursor-pointer"
+                      className="flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-amber-500 hover:bg-amber-600 border border-amber-500 text-[13px] font-bold text-white shadow-sm transition-all duration-200 cursor-pointer"
                     >
                       <Download size={15} />
-                      Download PDF
+                      Download
                     </button>
                   </div>
                 </div>
@@ -811,18 +893,93 @@ function CertificatesContent() {
       {downloadingCert && (
         <div
           style={{
-            position: "absolute",
-            top: "-9999px",
+            position: "fixed",
+            top: "0px",
             left: "-9999px",
-            zIndex: -1000,
+            zIndex: -9999,
+            overflow: "visible",
+            width: downloadingCert.type === "relieving" ? "640px" : "800px",
+            height: downloadingCert.type === "relieving" ? "900px" : "600px",
           }}
         >
           <div
             id="certificate-download-target"
+            style={{
+              width: downloadingCert.type === "relieving" ? "640px" : "800px",
+              height: downloadingCert.type === "relieving" ? "900px" : "600px",
+            }}
             dangerouslySetInnerHTML={{
               __html: renderCertificateHTML(downloadingCert),
             }}
           />
+        </div>
+      )}
+
+      {/* Certificate Preview Modal */}
+      {previewCert && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md p-4 overflow-y-auto">
+          <div 
+            onClick={() => setPreviewCert(null)} 
+            className="absolute inset-0 cursor-default"
+          />
+          <div className="relative w-full max-w-4xl bg-white dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl flex flex-col max-h-[90vh] z-10 overflow-hidden">
+            {/* Modal Header */}
+            <div className="flex justify-between items-center px-6 py-4 border-b border-slate-200 dark:border-slate-800">
+              <div>
+                <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100">
+                  {getCertTitle(previewCert.type, previewCert.category)}
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Certificate ID: <span className="font-mono uppercase">{previewCert.id}</span>
+                </p>
+              </div>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => {
+                    handleDownload(previewCert);
+                    setPreviewCert(null);
+                  }}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-[13px] font-bold shadow-sm transition-all duration-200 cursor-pointer"
+                >
+                  <Download size={15} />
+                  Download PDF
+                </button>
+                <button
+                  onClick={() => setPreviewCert(null)}
+                  className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 transition-colors cursor-pointer"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Body */}
+            <div className="flex-1 overflow-auto p-6 flex flex-col items-center justify-start bg-slate-50 dark:bg-slate-900/60 min-h-[300px]">
+              <div
+                ref={previewContainerRef}
+                className="w-full flex flex-col items-center justify-start"
+                style={{
+                  minHeight: previewCert.type === "relieving" ? `${900 * previewScale}px` : `${600 * previewScale}px`,
+                }}
+              >
+                <div
+                  style={{
+                    transform: `scale(${previewScale})`,
+                    transformOrigin: "top center",
+                    width: previewCert.type === "relieving" ? "640px" : "800px",
+                    height: previewCert.type === "relieving" ? "900px" : "600px",
+                    boxShadow: "0 10px 30px -10px rgba(0, 0, 0, 0.15)",
+                    borderRadius: previewCert.template === "modern" ? "16px" : "4px",
+                    overflow: "hidden",
+                    flexShrink: 0,
+                  }}
+                  dangerouslySetInnerHTML={{
+                    __html: renderCertificateHTML(previewCert),
+                  }}
+                />
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </PortalFrame>
