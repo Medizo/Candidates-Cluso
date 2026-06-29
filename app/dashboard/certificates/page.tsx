@@ -23,6 +23,9 @@ import {
   Eye,
   X,
   Share2,
+  Copy,
+  ExternalLink,
+  CheckCircle2,
 } from "lucide-react";
 
 // Custom social media icons (lucide-react doesn't include brand icons)
@@ -106,6 +109,12 @@ function getCertTitle(type: string, category?: string) {
     relieving: "Relieving Letter",
   };
   return titles[type] || "Certificate";
+}
+
+function getCopyTemplateText(cert: Certificate) {
+  const title = getCertTitle(cert.type, cert.category);
+  const company = cert.companyName || "Cluso Infolink";
+  return `Thrilled to share my ${title} from ${company}! Very happy to be a part of this amazing organization and grateful for the growth opportunities. Looking forward to achieving more milestones ahead! 🚀🏆 #Growth #Career #Professional #${company.replace(/\s+/g, "")}`;
 }
 
 function generateCertBody({
@@ -601,6 +610,22 @@ function CertificatesContent() {
   const [previewScale, setPreviewScale] = useState(1);
   const previewContainerRef = useRef<HTMLDivElement>(null);
 
+  // State for JPG download generator
+  const [generatingJpg, setGeneratingJpg] = useState(false);
+  const [copiedCertId, setCopiedCertId] = useState<string | null>(null);
+
+  const handleCopyTemplate = (cert: Certificate) => {
+    const text = getCopyTemplateText(cert);
+    navigator.clipboard.writeText(text).then(() => {
+      setCopiedCertId(cert.id);
+      setTimeout(() => {
+        setCopiedCertId(null);
+      }, 2000);
+    }).catch((err) => {
+      console.error("Failed to copy template text", err);
+    });
+  };
+
   const handlePreview = async (cert: Certificate) => {
     let qrCode = "";
     try {
@@ -771,7 +796,6 @@ function CertificatesContent() {
   };
 
   const getShareUrl = () => {
-    // Use the current page URL as a fallback shareable link
     if (typeof window !== 'undefined') return window.location.href;
     return '';
   };
@@ -791,16 +815,78 @@ function CertificatesContent() {
   };
 
   const handleShareInstagram = (cert: Certificate) => {
-    // Instagram doesn't have a direct web share API.
-    // We'll download the certificate image so user can share it on Instagram.
-    // Also copy the caption text to clipboard for convenience.
     const text = getShareText(cert);
     navigator.clipboard.writeText(text).then(() => {
       alert('Caption copied to clipboard! 📋\n\nThe certificate image will now download. You can upload it to Instagram with the copied caption.');
     }).catch(() => {
-      alert('Share on Instagram: Download the certificate and post it manually with your caption.');
+      alert('Share on Instagram: Download the certificate JPG and post it manually.');
     });
-    handleDownload(cert);
+    handleDownloadJpg(cert);
+  };
+
+  const handleDownloadJpg = async (cert: Certificate) => {
+    setGeneratingJpg(true);
+    let qrCode = "";
+    try {
+      qrCode = await QRCode.toDataURL(cert.id, {
+        margin: 1,
+        width: 150,
+        color: {
+          dark: "#000000",
+          light: "#ffffff",
+        },
+      });
+    } catch (e) {
+      console.error("Failed to generate QR code for JPG download", e);
+    }
+
+    setDownloadingCert({ ...cert, qrCode });
+
+    // Wait 400ms for DOM render
+    await new Promise((resolve) => setTimeout(resolve, 400));
+
+    try {
+      const element = document.getElementById("certificate-download-target");
+      if (element) {
+        const bgCol =
+          cert.template === "executive"
+            ? "#0f0f1a"
+            : cert.template === "classic"
+            ? "#fffdf7"
+            : "#ffffff";
+
+        const saved = fixGradientsForCapture(element);
+        
+        const canvas = await html2canvas(element, {
+          scale: 2.5,
+          useCORS: true,
+          allowTaint: true,
+          backgroundColor: bgCol,
+        });
+
+        restoreGradients(saved);
+
+        const imgData = canvas.toDataURL("image/jpeg", 0.95);
+        const filename = `${cert.recipientName.replace(/\s+/g, "_")}_${
+          cert.type === "relieving" ? "Relieving_Letter" : "Certificate"
+        }.jpg`;
+
+        const link = document.createElement("a");
+        link.href = imgData;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      } else {
+        alert("Failed to locate certificate container for download.");
+      }
+    } catch (err) {
+      console.error("Failed to generate JPG", err);
+      alert("Failed to download JPG certificate. Please try again.");
+    } finally {
+      setDownloadingCert(null);
+      setGeneratingJpg(false);
+    }
   };
 
   if (loading || !me || certsLoading) {
@@ -927,20 +1013,53 @@ function CertificatesContent() {
                   </div>
 
                   <div className="mt-6 flex flex-col gap-3">
+                    <button
+                      onClick={() => handlePreview(cert)}
+                      className="w-full flex items-center justify-center gap-1.5 py-2.5 px-4 rounded-xl border border-slate-200 dark:border-slate-800 dark:bg-slate-900 bg-white hover:bg-slate-50 dark:hover:bg-slate-800 hover:border-amber-500 text-[13px] font-bold text-slate-700 dark:text-slate-200 shadow-sm transition-all duration-200 cursor-pointer"
+                    >
+                      <Eye size={15} />
+                      View Certificate
+                    </button>
                     <div className="grid grid-cols-2 gap-3">
                       <button
-                        onClick={() => handlePreview(cert)}
-                        className="flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl border border-slate-200 dark:border-slate-800 dark:bg-slate-900 bg-white hover:bg-slate-50 dark:hover:bg-slate-800 hover:border-amber-500 text-[13px] font-bold text-slate-700 dark:text-slate-200 shadow-sm transition-all duration-200 cursor-pointer"
+                        onClick={() => handleDownload(cert)}
+                        className="flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-250 border border-slate-200 dark:border-slate-700 text-[12px] font-bold shadow-sm transition-all duration-200 cursor-pointer"
                       >
-                        <Eye size={15} />
-                        View
+                        <Download size={14} />
+                        Download PDF
                       </button>
                       <button
-                        onClick={() => handleDownload(cert)}
-                        className="flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-amber-500 hover:bg-amber-600 border border-amber-500 text-[13px] font-bold text-white shadow-sm transition-all duration-200 cursor-pointer"
+                        onClick={() => handleDownloadJpg(cert)}
+                        className="flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-[12px] font-bold text-white shadow-sm transition-all duration-200 cursor-pointer"
                       >
-                        <Download size={15} />
-                        Download PDF
+                        <Download size={14} />
+                        Download JPG
+                      </button>
+                    </div>
+
+                    {/* Copy Share Caption Row */}
+                    <div className="mt-1 p-2 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800/80 flex items-center justify-between gap-2">
+                      <div className="truncate text-left flex-1 min-w-0">
+                        <div className="text-[8px] uppercase font-bold text-slate-400 dark:text-slate-500 tracking-wider">Share Caption</div>
+                        <div className="text-[11px] text-slate-655 dark:text-slate-350 truncate">
+                          {getCopyTemplateText(cert)}
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => handleCopyTemplate(cert)}
+                        className="flex items-center gap-1 py-1 px-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-750 dark:text-slate-300 hover:border-amber-500 hover:text-amber-500 text-[10px] font-semibold transition-all duration-200 cursor-pointer flex-shrink-0"
+                      >
+                        {copiedCertId === cert.id ? (
+                          <>
+                            <Check size={11} className="text-green-500 animate-pulse" />
+                            <span className="text-green-600 dark:text-green-400">Copied!</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy size={11} />
+                            <span>Copy</span>
+                          </>
+                        )}
                       </button>
                     </div>
 
@@ -1021,16 +1140,26 @@ function CertificatesContent() {
                   Certificate ID: <span className="font-mono uppercase">{previewCert.id}</span>
                 </p>
               </div>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
                 <button
                   onClick={() => {
                     handleDownload(previewCert);
                     setPreviewCert(null);
                   }}
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-[13px] font-bold shadow-sm transition-all duration-200 cursor-pointer"
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-250 border border-slate-200 dark:border-slate-700 text-[12px] font-bold shadow-sm transition-all duration-200 cursor-pointer"
                 >
-                  <Download size={15} />
+                  <Download size={14} />
                   Download PDF
+                </button>
+                <button
+                  onClick={() => {
+                    handleDownloadJpg(previewCert);
+                    setPreviewCert(null);
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-[12px] font-bold shadow-sm transition-all duration-200 cursor-pointer"
+                >
+                  <Download size={14} />
+                  Download JPG
                 </button>
                 <button
                   onClick={() => setPreviewCert(null)}
@@ -1069,37 +1198,77 @@ function CertificatesContent() {
             </div>
 
             {/* Modal Footer — Social Share Bar */}
-            <div className="px-6 py-4 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 flex items-center justify-between">
-              <span className="text-[13px] font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-2">
-                <Share2 size={15} />
-                Share this certificate
-              </span>
-              <div className="flex items-center gap-2">
+            <div className="px-6 py-4 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-955 flex flex-col gap-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50 dark:bg-slate-900/60 p-3.5 rounded-xl border border-slate-100 dark:border-slate-800/80">
+                <div className="text-left">
+                  <div className="text-[9px] uppercase font-bold text-slate-400 dark:text-slate-500 tracking-wider">Share Caption</div>
+                  <div className="text-[12px] text-slate-655 dark:text-slate-350 max-w-xl pr-2">
+                    {getCopyTemplateText(previewCert)}
+                  </div>
+                </div>
                 <button
-                  onClick={() => handleShareLinkedIn(previewCert)}
-                  title="Share on LinkedIn"
-                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#0077b5]/10 hover:bg-[#0077b5]/20 text-[#0077b5] text-[13px] font-bold transition-all duration-200 cursor-pointer hover:scale-105"
+                  onClick={() => handleCopyTemplate(previewCert)}
+                  className="flex items-center justify-center gap-1.5 py-2 px-4 rounded-lg bg-white dark:bg-slate-955 border border-slate-200 dark:border-slate-700 hover:border-amber-500 text-[12px] font-semibold text-slate-700 dark:text-slate-300 transition-all duration-200 cursor-pointer flex-shrink-0"
                 >
-                  <LinkedInIcon size={16} />
-                  LinkedIn
-                </button>
-                <button
-                  onClick={() => handleShareFacebook(previewCert)}
-                  title="Share on Facebook"
-                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#1877f2]/10 hover:bg-[#1877f2]/20 text-[#1877f2] text-[13px] font-bold transition-all duration-200 cursor-pointer hover:scale-105"
-                >
-                  <FacebookIcon size={16} />
-                  Facebook
-                </button>
-                <button
-                  onClick={() => handleShareInstagram(previewCert)}
-                  title="Share on Instagram"
-                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#e4405f]/10 hover:bg-[#e4405f]/20 text-[#e4405f] text-[13px] font-bold transition-all duration-200 cursor-pointer hover:scale-105"
-                >
-                  <InstagramIcon size={16} />
-                  Instagram
+                  {copiedCertId === previewCert.id ? (
+                    <>
+                      <Check size={14} className="text-green-500 animate-pulse" />
+                      <span className="text-green-600 dark:text-green-400">Copied!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy size={14} />
+                      <span>Copy Caption</span>
+                    </>
+                  )}
                 </button>
               </div>
+
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1 border-t border-slate-100 dark:border-slate-900">
+                <span className="text-[13px] font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-2">
+                  <Share2 size={15} />
+                  Share this certificate
+                </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => handleShareLinkedIn(previewCert)}
+                    title="Share on LinkedIn"
+                    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#0077b5]/10 hover:bg-[#0077b5]/20 text-[#0077b5] text-[13px] font-bold transition-all duration-200 cursor-pointer hover:scale-105"
+                  >
+                    <LinkedInIcon size={16} />
+                    LinkedIn
+                  </button>
+                  <button
+                    onClick={() => handleShareFacebook(previewCert)}
+                    title="Share on Facebook"
+                    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#1877f2]/10 hover:bg-[#1877f2]/20 text-[#1877f2] text-[13px] font-bold transition-all duration-200 cursor-pointer hover:scale-105"
+                  >
+                    <FacebookIcon size={16} />
+                    Facebook
+                  </button>
+                  <button
+                    onClick={() => handleShareInstagram(previewCert)}
+                    title="Share on Instagram"
+                    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#e4405f]/10 hover:bg-[#e4405f]/20 text-[#e4405f] text-[13px] font-bold transition-all duration-200 cursor-pointer hover:scale-105"
+                  >
+                    <InstagramIcon size={16} />
+                    Instagram
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Progress Loader Modal Overlay */}
+      {generatingJpg && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-955/60 backdrop-blur-sm">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl p-6 flex flex-col items-center gap-4 max-w-xs text-center">
+            <div className="w-10 h-10 border-4 border-amber-500 border-t-transparent rounded-full animate-spin" />
+            <div className="flex flex-col gap-1">
+              <h4 className="text-[14px] font-bold text-slate-800 dark:text-slate-100">Generating Certificate JPG</h4>
+              <p className="text-[12px] text-slate-500">Please wait a moment...</p>
             </div>
           </div>
         </div>
