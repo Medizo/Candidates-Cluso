@@ -629,7 +629,7 @@ function CertificatesContent() {
   const handlePreview = async (cert: Certificate) => {
     let qrCode = "";
     try {
-      qrCode = await QRCode.toDataURL(cert.id, {
+      qrCode = await QRCode.toDataURL(`https://www.cluso.in/verify?id=${cert.id}`, {
         margin: 1,
         width: 150,
         color: {
@@ -726,7 +726,7 @@ function CertificatesContent() {
   const handleDownload = async (cert: Certificate) => {
     let qrCode = "";
     try {
-      qrCode = await QRCode.toDataURL(cert.id, {
+      qrCode = await QRCode.toDataURL(`https://www.cluso.in/verify?id=${cert.id}`, {
         margin: 1,
         width: 150,
         color: {
@@ -828,7 +828,7 @@ function CertificatesContent() {
     setGeneratingJpg(true);
     let qrCode = "";
     try {
-      qrCode = await QRCode.toDataURL(cert.id, {
+      qrCode = await QRCode.toDataURL(`https://www.cluso.in/verify?id=${cert.id}`, {
         margin: 1,
         width: 150,
         color: {

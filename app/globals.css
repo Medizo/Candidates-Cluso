@@ -2,7 +2,31 @@
 
 @variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
+@theme {
+  --color-primary: var(--primary);
+  --color-primary-light: var(--primary-light);
+  --color-primary-dark: var(--primary-dark);
+  --color-primary-glow: var(--primary-glow);
+  
+  --color-background: var(--background);
+  --color-on-background: var(--on-background);
+  --color-outline: var(--outline);
+  
+  --font-sans: var(--font-inter), sans-serif;
+  --font-display-lg: var(--font-manrope), sans-serif;
+  --font-label-caps: var(--font-jetbrains-mono), monospace;
+}
+
 :root {
+  --primary: #2563eb;
+  --primary-light: #60a5fa;
+  --primary-dark: #1d4ed8;
+  --primary-glow: rgba(37, 99, 235, 0.25);
+  
+  --background: #f8fafc;
+  --on-background: #0f172a;
+  --outline: rgba(37, 99, 235, 0.15);
+
   --ink: #1f2937;
   --ink-soft: #6b7280;
   --brand: #2563eb;
@@ -59,7 +83,7 @@ input, textarea, [contenteditable="true"] {
 body {
   margin: 0;
   color: var(--ink);
-  font-family: var(--font-pjs), -apple-system, BlinkMacSystemFont, "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
+  font-family: var(--font-inter), -apple-system, BlinkMacSystemFont, "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
   font-weight: 300;
   background-color: var(--body-bg);
   min-height: 100vh;
@@ -2572,4 +2596,50 @@ b, strong, h1, h2, h3, h4, h5, h6 { font-weight: 500 !important; }
 
 [data-theme="dark"] .applied-job-jd-preview {
   background: rgba(15, 23, 42, 0.6);
+}
+
+/* Drifting spheres keyframes & utility animations */
+@keyframes drift {
+  0% {
+    transform: translate(0px, 0px) scale(1);
+  }
+  33% {
+    transform: translate(30px, -50px) scale(1.1);
+  }
+  66% {
+    transform: translate(-20px, 20px) scale(0.95);
+  }
+  100% {
+    transform: translate(0px, 0px) scale(1);
+  }
+}
+
+@keyframes drift-reverse {
+  0% {
+    transform: translate(0px, 0px) scale(1);
+  }
+  33% {
+    transform: translate(-40px, 40px) scale(0.95);
+  }
+  66% {
+    transform: translate(25px, -30px) scale(1.05);
+  }
+  100% {
+    transform: translate(0px, 0px) scale(1);
+  }
+}
+
+.animate-drift {
+  animation: drift 15s ease-in-out infinite;
+}
+
+.animate-drift-reverse {
+  animation: drift-reverse 18s ease-in-out infinite;
+}
+
+/* Text Gradient Utility */
+.text-gradient-primary {
+  background: linear-gradient(135deg, var(--on-background) 30%, var(--primary) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
