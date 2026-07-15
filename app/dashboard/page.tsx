@@ -93,7 +93,7 @@ function DashboardContent() {
   const { me, loading, logout } = usePortalSession();
   const { items, loading: requestsLoading, refreshRequests } = useRequestsData();
   const [requestsReady, setRequestsReady] = useState(false);
-  const { linked: digiLinked, loading: digiLoading, reverifyRequested } = useDigiLockerStatus();
+  const { linked: digiLinked, loading: digiLoading, reverifyRequested, reverifyRequestedDocs } = useDigiLockerStatus();
   const searchParams = useSearchParams();
   const [digiMessage, setDigiMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
@@ -460,7 +460,17 @@ function DashboardContent() {
           <div style={{ flex: 1 }}>
             <div style={{ fontWeight: 700, color: '#d97706', fontSize: '0.9rem' }}>DigiLocker Re-verification Requested</div>
             <div style={{ fontSize: '0.82rem', color: '#92400e', marginTop: 2 }}>
-              Your admin has requested you to re-verify your DigiLocker to fetch missing documents. Your existing data will be preserved.
+              Your admin has requested the following document originals:
+            </div>
+            {reverifyRequestedDocs.length > 0 && (
+              <ul style={{ margin: '6px 0 0 0', padding: '0 0 0 18px', fontSize: '0.82rem', color: '#92400e' }}>
+                {reverifyRequestedDocs.map((docName, i) => (
+                  <li key={i} style={{ fontWeight: 600 }}>{docName}</li>
+                ))}
+              </ul>
+            )}
+            <div style={{ fontSize: '0.78rem', color: '#a16207', marginTop: 4, fontStyle: 'italic' }}>
+              Your existing verified data will be preserved — only missing files will be re-downloaded.
             </div>
           </div>
           <a
