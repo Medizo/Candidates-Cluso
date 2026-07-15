@@ -427,6 +427,36 @@ export async function GET(request: NextRequest) {
     }
 
     // ── Step 3: Save to MongoDB ──
+    // Merge with existing documents: on re-verify, keep fileData/certificateData
+    // from the previous verification if the new fetch didn't get them.
+    await connectMongo();
+    const existingUser = await User.findById(auth.userId).select("digilockerProfile.documents").lean();
+    const existingDocs = existingUser?.digilockerProfile?.documents || [];
+    if (existingDocs.length > 0 && documents.length > 0) {
+      // Build a lookup of existing docs by URI for fast matching
+      const existingByUri: Record<string, typeof existingDocs[0]> = {};
+      for (const ed of existingDocs) {
+        if (ed.uri) existingByUri[ed.uri] = ed;
+      }
+      for (let i = 0; i < documents.length; i++) {
+        const existing = existingByUri[documents[i].uri];
+        if (!existing) continue;
+        // Keep old fileData if new fetch didn't get it
+        if (!documents[i].fileData && existing.fileData) {
+          documents[i].fileData = existing.fileData;
+          documents[i].fileMimeType = existing.fileMimeType || "";
+          console.log(`[DigiLocker] Merged existing fileData for doc ${i}: ${documents[i].name}`);
+        }
+        // Keep old certificateData if new fetch didn't get it
+        if (!documents[i].certificateData && existing.certificateData) {
+          documents[i].certificateData = existing.certificateData;
+          console.log(`[DigiLocker] Merged existing certificateData for doc ${i}: ${documents[i].name}`);
+        }
+      }
+      const mergedFiles = documents.filter(d => d.fileData).length;
+      console.log(`[DigiLocker] After merge: ${mergedFiles}/${documents.length} documents have file data`);
+    }
+
     const digilockerProfile = {
       verified: true,
       name: user.name || "",

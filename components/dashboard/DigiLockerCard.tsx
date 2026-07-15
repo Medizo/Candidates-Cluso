@@ -218,6 +218,7 @@ export function useDigiLockerStatus() {
   const [linked, setLinked] = useState(false);
   const [profile, setProfile] = useState<DigiLockerProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [reverifyRequested, setReverifyRequested] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -227,6 +228,9 @@ export function useDigiLockerStatus() {
         if (data.linked && data.profile) {
           setLinked(true);
           setProfile(data.profile);
+          if (data.profile.reverifyRequested) {
+            setReverifyRequested(true);
+          }
         }
       } catch {
         // ignore
@@ -236,5 +240,5 @@ export function useDigiLockerStatus() {
     })();
   }, []);
 
-  return { linked, profile, loading };
+  return { linked, profile, loading, reverifyRequested };
 }

@@ -93,7 +93,7 @@ function DashboardContent() {
   const { me, loading, logout } = usePortalSession();
   const { items, loading: requestsLoading, refreshRequests } = useRequestsData();
   const [requestsReady, setRequestsReady] = useState(false);
-  const { linked: digiLinked, loading: digiLoading } = useDigiLockerStatus();
+  const { linked: digiLinked, loading: digiLoading, reverifyRequested } = useDigiLockerStatus();
   const searchParams = useSearchParams();
   const [digiMessage, setDigiMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
@@ -441,6 +441,43 @@ function DashboardContent() {
           >
             ×
           </button>
+        </div>
+      )}
+
+      {/* Re-verification request from admin */}
+      {reverifyRequested && digiLinked && (
+        <div className="inline-alert" style={{
+          background: 'linear-gradient(135deg, rgba(245,158,11,0.15), rgba(217,119,6,0.1))',
+          border: '1px solid rgba(245,158,11,0.3)',
+          borderRadius: 12,
+          padding: '14px 20px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 12,
+          marginBottom: 16,
+        }}>
+          <span style={{ fontSize: '1.3rem' }}>⚠️</span>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 700, color: '#d97706', fontSize: '0.9rem' }}>DigiLocker Re-verification Requested</div>
+            <div style={{ fontSize: '0.82rem', color: '#92400e', marginTop: 2 }}>
+              Your admin has requested you to re-verify your DigiLocker to fetch missing documents. Your existing data will be preserved.
+            </div>
+          </div>
+          <a
+            href="/api/digilocker/authorize"
+            style={{
+              padding: '8px 16px',
+              borderRadius: 8,
+              background: '#d97706',
+              color: '#fff',
+              fontWeight: 700,
+              fontSize: '0.82rem',
+              textDecoration: 'none',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            Re-verify Now
+          </a>
         </div>
       )}
 
