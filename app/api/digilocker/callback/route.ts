@@ -1,3 +1,4 @@
+// DigiLocker OAuth callback — fetches user profile, documents, certificate data & files
 import { NextRequest, NextResponse } from "next/server";
 import { connectMongo } from "@/lib/mongodb";
 import User from "@/lib/models/User";
