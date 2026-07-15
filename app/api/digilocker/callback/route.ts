@@ -323,8 +323,40 @@ export async function GET(request: NextRequest) {
             issuerId: doc.issuerid || "",
             uri: doc.uri || "",
             date: doc.date || "",
+            fileData: "",
+            fileMimeType: "",
           }));
           console.log(`[DigiLocker] Fetched ${documents.length} issued documents`);
+
+          // Source 6: Download each document's file content in parallel
+          const downloadResults = await Promise.allSettled(
+            documents.map(async (doc, idx) => {
+              if (!doc.uri) return;
+              try {
+                const fileRes = await fetch(
+                  `${baseUrl}/public/oauth2/1/file/${encodeURIComponent(doc.uri)}`,
+                  {
+                    method: "GET",
+                    headers: { Authorization: `Bearer ${accessToken}` },
+                  },
+                );
+                if (fileRes.ok) {
+                  const contentType = fileRes.headers.get("content-type") || "application/pdf";
+                  const arrayBuffer = await fileRes.arrayBuffer();
+                  const base64 = Buffer.from(arrayBuffer).toString("base64");
+                  documents[idx].fileData = base64;
+                  documents[idx].fileMimeType = contentType;
+                  console.log(`[DigiLocker] Downloaded file for doc ${idx}: ${doc.name} (${contentType}, ${base64.length} chars)`);
+                } else {
+                  console.log(`[DigiLocker] File download failed for doc ${idx} (${doc.name}): ${fileRes.status}`);
+                }
+              } catch (fileErr) {
+                console.log(`[DigiLocker] File download error for doc ${idx} (${doc.name}):`, fileErr);
+              }
+            }),
+          );
+          const downloaded = downloadResults.filter(r => r.status === "fulfilled").length;
+          console.log(`[DigiLocker] Downloaded ${downloaded}/${documents.length} document files`);
         }
       }
     } catch (docErr) {

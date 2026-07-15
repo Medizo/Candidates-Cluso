@@ -116,6 +116,8 @@ const UserSchema = new Schema(
             issuerId: { type: String, default: "" },
             uri: { type: String, default: "" },
             date: { type: String, default: "" },
+            fileData: { type: String, default: "" },
+            fileMimeType: { type: String, default: "" },
           },
         ],
         default: [],
