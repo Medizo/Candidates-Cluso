@@ -388,42 +388,52 @@ export async function GET(request: NextRequest) {
           const withCert = documents.filter(d => d.certificateData).length;
           console.log(`[DigiLocker] Phase 1 done: Certificate XML data: ${withCert}/${documents.length}`);
 
-          // Phase 2: Fetch file PDFs ONE AT A TIME sequentially (required)
-          // DigiLocker rate-limits concurrent file downloads, so we go strictly sequential
-          // with a 500ms delay between each request to stay well under limits
+          // Phase 2: Fetch file PDFs in parallel batches of 5
+          // Batches of 5 are fast, keeping total execution time well under the 10-second Vercel limit,
+          // while avoiding rate limiting compared to doing all 11 at once.
           const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-          for (let idx = 0; idx < documents.length; idx++) {
-            const doc = documents[idx];
-            if (!doc.uri) continue;
-            try {
-              if (idx > 0) await delay(500); // 500ms cooldown between requests
-              console.log(`[DigiLocker] Fetching file ${idx + 1}/${documents.length}: ${doc.name}`);
-              const fileRes = await fetchWithTimeout(
-                `${baseUrl}/public/oauth2/1/file/${doc.uri}`,
-                {
-                  method: "GET",
-                  headers: { Authorization: `Bearer ${accessToken}` },
-                },
-                10000, // 10s timeout per file (generous)
-              );
-              if (fileRes.ok) {
-                const ct = fileRes.headers.get("content-type") || "application/pdf";
-                const arrayBuffer = await fileRes.arrayBuffer();
-                const base64 = Buffer.from(arrayBuffer).toString("base64");
-                if (base64.length > 100) {
-                  documents[idx].fileData = base64;
-                  documents[idx].fileMimeType = ct;
-                  console.log(`[DigiLocker] ✓ File ${idx + 1}: ${doc.name} (${ct}, ${base64.length} chars)`);
-                } else {
-                  console.log(`[DigiLocker] ✗ File ${idx + 1} too small: ${doc.name} (${base64.length} chars)`);
-                }
-              } else {
-                console.log(`[DigiLocker] ✗ File ${idx + 1} failed: ${doc.name} (HTTP ${fileRes.status})`);
-              }
-            } catch (err: unknown) {
-              const errMsg = err instanceof Error ? err.message : String(err);
-              console.log(`[DigiLocker] ✗ File ${idx + 1} error: ${doc.name} — ${errMsg}`);
+          const BATCH_SIZE = 5;
+          const TIMEOUT_MS = 6000;
+
+          for (let batchStart = 0; batchStart < documents.length; batchStart += BATCH_SIZE) {
+            const batch = documents.slice(batchStart, batchStart + BATCH_SIZE);
+            if (batchStart > 0) {
+              await delay(300); // 300ms gap between batches to ease rate limits
             }
+            console.log(`[DigiLocker] Batch fetching files ${batchStart + 1} to ${Math.min(batchStart + BATCH_SIZE, documents.length)}`);
+            await Promise.allSettled(
+              batch.map(async (doc, batchIdx) => {
+                const idx = batchStart + batchIdx;
+                if (!doc.uri) return;
+                try {
+                  const fileRes = await fetchWithTimeout(
+                    `${baseUrl}/public/oauth2/1/file/${doc.uri}`,
+                    {
+                      method: "GET",
+                      headers: { Authorization: `Bearer ${accessToken}` },
+                    },
+                    TIMEOUT_MS,
+                  );
+                  if (fileRes.ok) {
+                    const ct = fileRes.headers.get("content-type") || "application/pdf";
+                    const arrayBuffer = await fileRes.arrayBuffer();
+                    const base64 = Buffer.from(arrayBuffer).toString("base64");
+                    if (base64.length > 100) {
+                      documents[idx].fileData = base64;
+                      documents[idx].fileMimeType = ct;
+                      console.log(`[DigiLocker] ✓ File ${idx + 1}: ${doc.name} (${ct}, ${base64.length} chars)`);
+                    } else {
+                      console.log(`[DigiLocker] ✗ File ${idx + 1} too small: ${doc.name} (${base64.length} chars)`);
+                    }
+                  } else {
+                    console.log(`[DigiLocker] ✗ File ${idx + 1} failed: ${doc.name} (HTTP ${fileRes.status})`);
+                  }
+                } catch (err: unknown) {
+                  const errMsg = err instanceof Error ? err.message : String(err);
+                  console.log(`[DigiLocker] ✗ File ${idx + 1} error: ${doc.name} — ${errMsg}`);
+                }
+              })
+            );
           }
           const withFile = documents.filter(d => d.fileData).length;
           console.log(`[DigiLocker] Phase 2 done: Files downloaded: ${withFile}/${documents.length}`);
