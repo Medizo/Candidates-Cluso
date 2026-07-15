@@ -1,0 +1,352 @@
+{
+  "_id": "6a4fdc523631f273f9b0a62c",
+  "name": "Ahmad",
+  "email": "ahmadshajee0@gmail.com",
+  "digilockerProfile": {
+    "verified": true,
+    "name": "Ahmad Shajee Zubairy",
+    "dob": "17-10-2003",
+    "gender": "M",
+    "email": "ahmadshajee2016@gmail.com",
+    "mobile": "9507494785",
+    "maskedAadhaar": "xxxxxxxx9617",
+    "digilockerid": "71af51ef-50ac-5507-a34d-1d2ed99814f5",
+    "referenceKey": "6f5edb6aed2fd2c5de96abeace603921b4c8b092c88dc49ca37da4104df257ee",
+    "eaadhaar": "",
+    "photo": "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",
+    "panNumber": "ADSPZ9708R",
+    "drivingLicence": "BR0120220010509",
+    "preferredUsername": "ahmad@840",
+    "documents": [
+      {
+        "name": "APAAR ID",
+        "doctype": "ABCID",
+        "description": "APAAR ID",
+        "issuer": "Academic Bank of Credits",
+        "issuerId": "in.gov.abc",
+        "uri": "in.gov.abc-ABCID-292602395879",
+        "date": "03-01-2023",
+        "_id": "6a57e2b6bbfbb9f89de04e01"
+      },
+      {
+        "name": "Class XII Marksheet",
+        "doctype": "HSCER",
+        "description": "Class XII Marksheet",
+        "issuer": "Central Board of Secondary Education",
+        "issuerId": "in.gov.cbse",
+        "uri": "in.gov.cbse-HSCER-226364042022",
+        "date": "11-08-2022",
+        "_id": "6a57e2b6bbfbb9f89de04e02"
+      },
+      {
+        "name": "Degree/ Diploma Marksheet",
+        "doctype": "DGMST",
+        "description": "Degree/ Diploma Marksheet",
+        "issuer": "S.R.M. Institute of Science & Technology, Chennai",
+        "issuerId": "in.edu.srmist",
+        "uri": "in.edu.srmist-DGMST-RA22110330101132023RA2211033010113IIINOVEMBER",
+        "date": "05-04-2024",
+        "_id": "6a57e2b6bbfbb9f89de04e03"
+      },
+      {
+        "name": "Degree/ Diploma Marksheet",
+        "doctype": "DGMST",
+        "description": "Degree/ Diploma Marksheet",
+        "issuer": "S.R.M. Institute of Science & Technology, Chennai",
+        "issuerId": "in.edu.srmist",
+        "uri": "in.edu.srmist-DGMST-RA22110330101132023RA2211033010113IIMAY",
+        "date": "12-12-2023",
+        "_id": "6a57e2b6bbfbb9f89de04e04"
+      },
+      {
+        "name": "Degree/ Diploma Marksheet",
+        "doctype": "DGMST",
+        "description": "Degree/ Diploma Marksheet",
+        "issuer": "S.R.M. Institute of Science & Technology, Chennai",
+        "issuerId": "in.edu.srmist",
+        "uri": "in.edu.srmist-DGMST-RA22110330101132023RA2211033010113IJANUARY",
+        "date": "12-12-2023",
+        "_id": "6a57e2b6bbfbb9f89de04e05"
+      },
+      {
+        "name": "Degree/ Diploma Marksheet",
+        "doctype": "DGMST",
+        "description": "Degree/ Diploma Marksheet",
+        "issuer": "S.R.M. Institute of Science & Technology, Chennai",
+        "issuerId": "in.edu.srmist",
+        "uri": "in.edu.srmist-DGMST-RA22110330101132024RA2211033010113IVMAY",
+        "date": "17-08-2024",
+        "_id": "6a57e2b6bbfbb9f89de04e06"
+      },
+      {
+        "name": "Degree/ Diploma Marksheet",
+        "doctype": "DGMST",
+        "description": "Degree/ Diploma Marksheet",
+        "issuer": "S.R.M. Institute of Science & Technology, Chennai",
+        "issuerId": "in.edu.srmist",
+        "uri": "in.edu.srmist-DGMST-RA22110330101132024RA2211033010113VNOVEMBER",
+        "date": "28-03-2025",
+        "_id": "6a57e2b6bbfbb9f89de04e07"
+      },
+      {
+        "name": "Degree/ Diploma Marksheet",
+        "doctype": "DGMST",
+        "description": "Degree/ Diploma Marksheet",
+        "issuer": "S.R.M. Institute of Science & Technology, Chennai",
+        "issuerId": "in.edu.srmist",
+        "uri": "in.edu.srmist-DGMST-RA22110330101132025RA2211033010113VIINOVEMBER",
+        "date": "14-03-2026",
+        "_id": "6a57e2b6bbfbb9f89de04e08"
+      },
+      {
+        "name": "Degree/ Diploma Marksheet",
+        "doctype": "DGMST",
+        "description": "Degree/ Diploma Marksheet",
+        "issuer": "S.R.M. Institute of Science & Technology, Chennai",
+        "issuerId": "in.edu.srmist",
+        "uri": "in.edu.srmist-DGMST-RA22110330101132025RA2211033010113VIMAY",
+        "date": "01-09-2025",
+        "_id": "6a57e2b6bbfbb9f89de04e09"
+      },
+      {
+        "name": "Driving License",
+        "doctype": "DRVLC",
+        "description": "Driving License",
+        "issuer": "Ministry of Road Transport and Highways",
+        "issuerId": "in.gov.transport",
+        "uri": "in.gov.transport-DRVLC-BR0120220010509",
+        "date": "03-01-2023",
+        "_id": "6a57e2b6bbfbb9f89de04e0a"
+      },
+      {
+        "name": "PAN Verification Record",
+        "doctype": "PANCR",
+        "description": "PAN Verification Record",
+        "issuer": "Income Tax Department",
+        "issuerId": "in.gov.pan",
+        "uri": "in.gov.pan-PANCR-ADSPZ9708R",
+        "date": "19-05-2022",
+        "_id": "6a57e2b6bbfbb9f89de04e0b"
+      }
+    ],
+    "rawTokenResponse": {
+      "expires_in": 3600,
+      "token_type": "Bearer",
+      "scope": "openid files.issueddocs picture issued/in.edu.srmist-DGMST-RA22110330101132023RA2211033010113IIINOVEMBER file.partners/EICRD issued/in.edu.srmist-DGMST-RA22110330101132025RA2211033010113VIMAY file.partners/CERSR file.partners/DGCER file.partners/EECER file.partners/DRMST file.partners/EQCER issued/in.edu.srmist-DGMST-RA22110330101132023RA2211033010113IJANUARY issued/in.edu.srmist-DGMST-RA22110330101132024RA2211033010113VNOVEMBER issued/in.gov.pan-PANCR-ADSPZ9708R issued/in.edu.srmist-DGMST-RA22110330101132025RA2211033010113VIINOVEMBER issued/in.gov.cbse-HSCER-226364042022 apaardetails file.partners/DKCER issued/in.gov.transport-DRVLC-BR0120220010509 address file.partners/DRTCR issued/in.edu.srmist-DGMST-RA22110330101132024RA2211033010113IVMAY file.partners/DIPCR email issued/in.edu.srmist-DGMST-RA22110330101132023RA2211033010113IIMAY file.partners/APLTR file.partners/CERSV careof userdetails file.partners/ESCER issued/in.gov.abc-ABCID-292602395879",
+      "consent_valid_till": 1786818599,
+      "id_token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsImtpZCI6bnVsbH0.eyJpc3MiOiJodHRwczpcL1wvZGlnaWxvY2tlci5tZXJpcGVoY2hhYW4uZ292LmluIiwic3ViIjoiNzFhZjUxZWYtNTBhYy01NTA3LWEzNGQtMWQyZWQ5OTgxNGY1IiwiYXVkIjoiWUQwNTAyNTFDNyIsImlhdCI6MTc4NDE0NDU2MiwiZXhwIjoxNzg0MjMwOTYyLCJhdXRoX3RpbWUiOjE3ODQxNDQ1NjIsImdpdmVuX25hbWUiOiJBaG1hZCBTaGFqZWUgWnViYWlyeSIsImVtYWlsIjoiYWhtYWRzaGFqZWUyMDE2QGdtYWlsLmNvbSIsImdlbmRlciI6Ik0iLCJiaXJ0aGRhdGUiOiIxN1wvMTBcLzIwMDMiLCJwaG9uZV9udW1iZXIiOiI5NTA3NDk0Nzg1IiwianRpIjoiYmJjMWQzODAtMzhmYy00MzFmLThhOTItNGJjZTI1MzcwY2RhIiwidXNlcl9zc29faWQiOiJETC03MWFmNTFlZi01MGFjLTU1MDctYTM0ZC0xZDJlZDk5ODE0ZjUiLCJwYW5fbnVtYmVyIjoiQURTUFo5NzA4UiIsImRyaXZpbmdfbGljZW5jZSI6IkJSMDEyMDIyMDAxMDUwOSIsIm1hc2tlZF9hYWRoYWFyIjoieHh4eHh4eHg5NjE3IiwicmVmZXJlbmNlX2tleSI6IjZmNWVkYjZhZWQyZmQyYzVkZTk2YWJlYWNlNjAzOTIxYjRjOGIwOTJjODhkYzQ5Y2EzN2RhNDEwNGRmMjU3ZWUiLCJhdXRoX3R4biI6IjZhNTdlMjk3ZGUzMjlvYXV0aDIxNzg0MTQ0NTM1IiwiYXV0aF9tb2RlIjoiRExfTU9CSUxFX1BJTiIsImRpZ2lsb2NrZXJpZCI6IjcxYWY1MWVmLTUwYWMtNTUwNy1hMzRkLTFkMmVkOTk4MTRmNSIsIm5vbmNlIjoiN2Y5NzIyZGJlZWZhZTlkNDVhYWI1NDY3OGFjMWYwZDAiLCJwcmVmZXJyZWRfdXNlcm5hbWUiOiJhaG1hZEA4NDAifQ.Uha2v9EVQkUDM0CHGcbR2m5qqiyJQ4xVy5h81cuq8QgAKkAr_IdYo9bSYBmTfk4Zae7AkRmUG9g842qGmX_Nh4DtAnV9Ql5n6r_fnDpLVZV0xixiohEdGSSkPmGvstNSUxCbOFmBSgdm0P5zhMBtaR1QB6WzR5_SHJ9ANvPJgYaFjzL2O_AzZPAH6-lEGzosMe_wu5XV9_lstPbjecplmLuhI-AjEyT6kEbhCZakI4ioswdw-PXQZoS0_6lVU_lnG-2g2bDa3Tvol1JN6QKwI41UDS-0jJ9r13RzwFDASvQUVgkhBW9QHJ6VaLKEMz-e5yzvXk98HZLiH8OOFR1fuA"
+    },
+    "rawUserResponse": {
+      "digilockerid": "71af51ef-50ac-5507-a34d-1d2ed99814f5",
+      "name": "Ahmad Shajee Zubairy",
+      "dob": "17102003",
+      "gender": "M",
+      "eaadhaar": "Y",
+      "reference_key": "6f5edb6aed2fd2c5de96abeace603921b4c8b092c88dc49ca37da4104df257ee",
+      "mobile": "9507494785",
+      "sub": "71af51ef-50ac-5507-a34d-1d2ed99814f5",
+      "picture": "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",
+      "email": "ahmadshajee2016@gmail.com"
+    },
+    "rawDocumentsResponse": {
+      "items": [
+        {
+          "name": "APAAR ID",
+          "type": "file",
+          "size": "",
+          "date": "03-01-2023",
+          "parent": "",
+          "mime": [
+            "application/json",
+            "application/xml",
+            "application/pdf"
+          ],
+          "uri": "in.gov.abc-ABCID-292602395879",
+          "doctype": "ABCID",
+          "description": "APAAR ID",
+          "issuerid": "in.gov.abc",
+          "issuer": "Academic Bank of Credits"
+        },
+        {
+          "name": "Class XII Marksheet",
+          "type": "file",
+          "size": "",
+          "date": "11-08-2022",
+          "parent": "",
+          "mime": [
+            "application/json",
+            "application/xml",
+            "application/pdf",
+            "application/vc"
+          ],
+          "uri": "in.gov.cbse-HSCER-226364042022",
+          "doctype": "HSCER",
+          "description": "Class XII Marksheet",
+          "issuerid": "in.gov.cbse",
+          "issuer": "Central Board of Secondary Education"
+        },
+        {
+          "name": "Degree/ Diploma Marksheet",
+          "type": "file",
+          "size": "",
+          "date": "05-04-2024",
+          "parent": "",
+          "mime": [
+            "application/json",
+            "application/xml",
+            "application/pdf",
+            "application/vc"
+          ],
+          "uri": "in.edu.srmist-DGMST-RA22110330101132023RA2211033010113IIINOVEMBER",
+          "doctype": "DGMST",
+          "description": "Degree/ Diploma Marksheet",
+          "issuerid": "in.edu.srmist",
+          "issuer": "S.R.M. Institute of Science & Technology, Chennai"
+        },
+        {
+          "name": "Degree/ Diploma Marksheet",
+          "type": "file",
+          "size": "",
+          "date": "12-12-2023",
+          "parent": "",
+          "mime": [
+            "application/json",
+            "application/xml",
+            "application/pdf",
+            "application/vc"
+          ],
+          "uri": "in.edu.srmist-DGMST-RA22110330101132023RA2211033010113IIMAY",
+          "doctype": "DGMST",
+          "description": "Degree/ Diploma Marksheet",
+          "issuerid": "in.edu.srmist",
+          "issuer": "S.R.M. Institute of Science & Technology, Chennai"
+        },
+        {
+          "name": "Degree/ Diploma Marksheet",
+          "type": "file",
+          "size": "",
+          "date": "12-12-2023",
+          "parent": "",
+          "mime": [
+            "application/json",
+            "application/xml",
+            "application/pdf",
+            "application/vc"
+          ],
+          "uri": "in.edu.srmist-DGMST-RA22110330101132023RA2211033010113IJANUARY",
+          "doctype": "DGMST",
+          "description": "Degree/ Diploma Marksheet",
+          "issuerid": "in.edu.srmist",
+          "issuer": "S.R.M. Institute of Science & Technology, Chennai"
+        },
+        {
+          "name": "Degree/ Diploma Marksheet",
+          "type": "file",
+          "size": "",
+          "date": "17-08-2024",
+          "parent": "",
+          "mime": [
+            "application/json",
+            "application/xml",
+            "application/pdf",
+            "application/vc"
+          ],
+          "uri": "in.edu.srmist-DGMST-RA22110330101132024RA2211033010113IVMAY",
+          "doctype": "DGMST",
+          "description": "Degree/ Diploma Marksheet",
+          "issuerid": "in.edu.srmist",
+          "issuer": "S.R.M. Institute of Science & Technology, Chennai"
+        },
+        {
+          "name": "Degree/ Diploma Marksheet",
+          "type": "file",
+          "size": "",
+          "date": "28-03-2025",
+          "parent": "",
+          "mime": [
+            "application/json",
+            "application/xml",
+            "application/pdf",
+            "application/vc"
+          ],
+          "uri": "in.edu.srmist-DGMST-RA22110330101132024RA2211033010113VNOVEMBER",
+          "doctype": "DGMST",
+          "description": "Degree/ Diploma Marksheet",
+          "issuerid": "in.edu.srmist",
+          "issuer": "S.R.M. Institute of Science & Technology, Chennai"
+        },
+        {
+          "name": "Degree/ Diploma Marksheet",
+          "type": "file",
+          "size": "",
+          "date": "14-03-2026",
+          "parent": "",
+          "mime": [
+            "application/json",
+            "application/xml",
+            "application/pdf",
+            "application/vc"
+          ],
+          "uri": "in.edu.srmist-DGMST-RA22110330101132025RA2211033010113VIINOVEMBER",
+          "doctype": "DGMST",
+          "description": "Degree/ Diploma Marksheet",
+          "issuerid": "in.edu.srmist",
+          "issuer": "S.R.M. Institute of Science & Technology, Chennai"
+        },
+        {
+          "name": "Degree/ Diploma Marksheet",
+          "type": "file",
+          "size": "",
+          "date": "01-09-2025",
+          "parent": "",
+          "mime": [
+            "application/json",
+            "application/xml",
+            "application/pdf",
+            "application/vc"
+          ],
+          "uri": "in.edu.srmist-DGMST-RA22110330101132025RA2211033010113VIMAY",
+          "doctype": "DGMST",
+          "description": "Degree/ Diploma Marksheet",
+          "issuerid": "in.edu.srmist",
+          "issuer": "S.R.M. Institute of Science & Technology, Chennai"
+        },
+        {
+          "name": "Driving License",
+          "type": "file",
+          "size": "",
+          "date": "03-01-2023",
+          "parent": "",
+          "mime": [
+            "application/json",
+            "application/xml",
+            "application/pdf"
+          ],
+          "uri": "in.gov.transport-DRVLC-BR0120220010509",
+          "doctype": "DRVLC",
+          "description": "Driving License",
+          "issuerid": "in.gov.transport",
+          "issuer": "Ministry of Road Transport and Highways"
+        },
+        {
+          "name": "PAN Verification Record",
+          "type": "file",
+          "size": "",
+          "date": "19-05-2022",
+          "parent": "",
+          "mime": [
+            "application/json",
+            "application/xml",
+            "application/pdf"
+          ],
+          "uri": "in.gov.pan-PANCR-ADSPZ9708R",
+          "doctype": "PANCR",
+          "description": "PAN Verification Record",
+          "issuerid": "in.gov.pan",
+          "issuer": "Income Tax Department"
+        }
+      ]
+    },
+    "linkedAt": "2026-07-15T19:42:46.743Z"
+  }
+}

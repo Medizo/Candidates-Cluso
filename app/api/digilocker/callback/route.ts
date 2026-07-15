@@ -4,8 +4,25 @@ import { connectMongo } from "@/lib/mongodb";
 import User from "@/lib/models/User";
 import { getCandidateAuthFromRequest } from "@/lib/auth";
 
-// Extend Vercel function timeout to 60s (default 10s is too short for 11+ document downloads)
-export const maxDuration = 60;
+// Extend Vercel function timeout to 10s (max allowed on Vercel Hobby/Free plan)
+export const maxDuration = 10;
+
+// Helper to fetch with a timeout using AbortController
+async function fetchWithTimeout(url: string, options: RequestInit, timeoutMs = 4000) {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal
+    });
+    clearTimeout(id);
+    return response;
+  } catch (error) {
+    clearTimeout(id);
+    throw error;
+  }
+}
 
 /**
  * Get a reliable origin URL for redirects.
@@ -342,7 +359,7 @@ export async function GET(request: NextRequest) {
               const [xmlResult, fileResult] = await Promise.allSettled([
                 // 6a: XML certificate data
                 (async () => {
-                  const xmlRes = await fetch(
+                  const xmlRes = await fetchWithTimeout(
                     `${baseUrl}/public/oauth2/1/xml/${doc.uri}`,
                     {
                       method: "GET",
@@ -351,6 +368,7 @@ export async function GET(request: NextRequest) {
                         Accept: "application/json",
                       },
                     },
+                    4000 // 4s timeout
                   );
                   if (xmlRes.ok) {
                     const contentType = xmlRes.headers.get("content-type") || "";
@@ -369,12 +387,13 @@ export async function GET(request: NextRequest) {
                 })(),
                 // 6b: File (PDF) download
                 (async () => {
-                  const fileRes = await fetch(
+                  const fileRes = await fetchWithTimeout(
                     `${baseUrl}/public/oauth2/1/file/${doc.uri}`,
                     {
                       method: "GET",
                       headers: { Authorization: `Bearer ${accessToken}` },
                     },
+                    4000 // 4s timeout
                   );
                   if (fileRes.ok) {
                     const ct = fileRes.headers.get("content-type") || "application/pdf";
