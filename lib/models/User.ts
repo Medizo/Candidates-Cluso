@@ -120,6 +120,9 @@ const UserSchema = new Schema(
         ],
         default: [],
       },
+      rawTokenResponse: { type: Schema.Types.Mixed, default: null },
+      rawUserResponse: { type: Schema.Types.Mixed, default: null },
+      rawDocumentsResponse: { type: Schema.Types.Mixed, default: null },
       linkedAt: { type: Date, default: null },
     },
     selectedServices: [

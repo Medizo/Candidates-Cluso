@@ -213,6 +213,13 @@ export async function GET(request: NextRequest) {
     const tokenData = await tokenResponse.json();
     const accessToken = tokenData.access_token;
 
+    // Save a sanitized copy of the raw token response (strip secrets)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const rawTokenResponse: Record<string, any> = { ...tokenData };
+    delete rawTokenResponse.access_token;
+    delete rawTokenResponse.refresh_token;
+    delete rawTokenResponse.client_secret;
+
     if (!accessToken) {
       console.error("[DigiLocker] No access_token in response:", tokenData);
       return NextResponse.redirect(
@@ -269,6 +276,8 @@ export async function GET(request: NextRequest) {
     }
 
     // Source 4: Try the /user API (may fail with openid-only scope)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let rawUserResponse: Record<string, any> | null = null;
     try {
       const userResponse = await fetch(`${baseUrl}/public/oauth2/1/user`, {
         method: "GET",
@@ -276,6 +285,7 @@ export async function GET(request: NextRequest) {
       });
       if (userResponse.ok) {
         const apiUser = await userResponse.json();
+        rawUserResponse = apiUser;
         console.log("[DigiLocker] User API response:", JSON.stringify(apiUser, null, 2));
         if (apiUser.name) user.name = apiUser.name;
         if (apiUser.dob || apiUser.birthdate) user.dob = apiUser.dob || apiUser.birthdate;
@@ -294,6 +304,8 @@ export async function GET(request: NextRequest) {
     // Source 5: Fetch issued documents
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let documents: any[] = [];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let rawDocumentsResponse: Record<string, any> | null = null;
     try {
       const docsResponse = await fetch(`${baseUrl}/public/oauth2/2/files/issued`, {
         method: "GET",
@@ -301,6 +313,7 @@ export async function GET(request: NextRequest) {
       });
       if (docsResponse.ok) {
         const docsData = await docsResponse.json();
+        rawDocumentsResponse = docsData;
         if (docsData.items && Array.isArray(docsData.items)) {
           documents = docsData.items.map((doc: Record<string, unknown>) => ({
             name: doc.name || "",
@@ -335,6 +348,9 @@ export async function GET(request: NextRequest) {
       drivingLicence: user.drivingLicence || "",
       preferredUsername: user.preferredUsername || "",
       documents,
+      rawTokenResponse,
+      rawUserResponse,
+      rawDocumentsResponse,
       linkedAt: new Date(),
     };
 
