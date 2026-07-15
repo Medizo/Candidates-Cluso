@@ -4,8 +4,8 @@ import { connectMongo } from "@/lib/mongodb";
 import User from "@/lib/models/User";
 import { getCandidateAuthFromRequest } from "@/lib/auth";
 
-// Extend Vercel function timeout to 10s (max allowed on Vercel Hobby/Free plan)
-export const maxDuration = 10;
+// Extend Vercel function timeout to 60s (Vercel Hobby supports up to 60s)
+export const maxDuration = 60;
 
 // Helper to fetch with a timeout using AbortController
 async function fetchWithTimeout(url: string, options: RequestInit, timeoutMs = 4000) {
@@ -350,71 +350,79 @@ export async function GET(request: NextRequest) {
           }));
           console.log(`[DigiLocker] Fetched ${documents.length} issued documents`);
 
-          // Source 6: Fetch certificate data (XML/JSON) and file for each document in parallel
-          await Promise.allSettled(
-            documents.map(async (doc, idx) => {
-              if (!doc.uri) return;
+          // Source 6: Fetch certificate data (XML/JSON) and file for each document
+          // Process in batches of 2 with generous timeout to maximize downloads
+          const BATCH_SIZE = 2;
+          const TIMEOUT_MS = 8000;
+          for (let batchStart = 0; batchStart < documents.length; batchStart += BATCH_SIZE) {
+            const batch = documents.slice(batchStart, batchStart + BATCH_SIZE);
+            await Promise.allSettled(
+              batch.map(async (doc, batchIdx) => {
+                const idx = batchStart + batchIdx;
+                if (!doc.uri) return;
 
-              // Run XML and file fetch in parallel for speed
-              const [xmlResult, fileResult] = await Promise.allSettled([
-                // 6a: XML certificate data
-                (async () => {
-                  const xmlRes = await fetchWithTimeout(
-                    `${baseUrl}/public/oauth2/1/xml/${doc.uri}`,
-                    {
-                      method: "GET",
-                      headers: {
-                        Authorization: `Bearer ${accessToken}`,
-                        Accept: "application/json",
+                // Run XML and file fetch in parallel within each batch item
+                const [xmlResult, fileResult] = await Promise.allSettled([
+                  // 6a: XML certificate data
+                  (async () => {
+                    const xmlRes = await fetchWithTimeout(
+                      `${baseUrl}/public/oauth2/1/xml/${doc.uri}`,
+                      {
+                        method: "GET",
+                        headers: {
+                          Authorization: `Bearer ${accessToken}`,
+                          Accept: "application/json",
+                        },
                       },
-                    },
-                    4000 // 4s timeout
-                  );
-                  if (xmlRes.ok) {
-                    const contentType = xmlRes.headers.get("content-type") || "";
-                    if (contentType.includes("json")) {
-                      const jsonData = await xmlRes.json();
-                      documents[idx].certificateData = jsonData;
-                      console.log(`[DigiLocker] Got JSON cert data for doc ${idx}: ${doc.name}`);
+                      TIMEOUT_MS,
+                    );
+                    if (xmlRes.ok) {
+                      const contentType = xmlRes.headers.get("content-type") || "";
+                      if (contentType.includes("json")) {
+                        const jsonData = await xmlRes.json();
+                        documents[idx].certificateData = jsonData;
+                        console.log(`[DigiLocker] Got JSON cert data for doc ${idx}: ${doc.name}`);
+                      } else {
+                        const textData = await xmlRes.text();
+                        documents[idx].certificateData = { rawXml: textData };
+                        console.log(`[DigiLocker] Got XML cert data for doc ${idx}: ${doc.name} (${textData.length} chars)`);
+                      }
                     } else {
-                      const textData = await xmlRes.text();
-                      documents[idx].certificateData = { rawXml: textData };
-                      console.log(`[DigiLocker] Got XML cert data for doc ${idx}: ${doc.name} (${textData.length} chars)`);
+                      console.log(`[DigiLocker] XML failed doc ${idx} (${doc.name}): ${xmlRes.status}`);
                     }
-                  } else {
-                    console.log(`[DigiLocker] XML failed doc ${idx} (${doc.name}): ${xmlRes.status}`);
-                  }
-                })(),
-                // 6b: File (PDF) download
-                (async () => {
-                  const fileRes = await fetchWithTimeout(
-                    `${baseUrl}/public/oauth2/1/file/${doc.uri}`,
-                    {
-                      method: "GET",
-                      headers: { Authorization: `Bearer ${accessToken}` },
-                    },
-                    4000 // 4s timeout
-                  );
-                  if (fileRes.ok) {
-                    const ct = fileRes.headers.get("content-type") || "application/pdf";
-                    const arrayBuffer = await fileRes.arrayBuffer();
-                    const base64 = Buffer.from(arrayBuffer).toString("base64");
-                    if (base64.length > 100) {
-                      documents[idx].fileData = base64;
-                      documents[idx].fileMimeType = ct;
-                      console.log(`[DigiLocker] Downloaded file doc ${idx}: ${doc.name} (${ct}, ${base64.length} chars)`);
+                  })(),
+                  // 6b: File (PDF) download
+                  (async () => {
+                    const fileRes = await fetchWithTimeout(
+                      `${baseUrl}/public/oauth2/1/file/${doc.uri}`,
+                      {
+                        method: "GET",
+                        headers: { Authorization: `Bearer ${accessToken}` },
+                      },
+                      TIMEOUT_MS,
+                    );
+                    if (fileRes.ok) {
+                      const ct = fileRes.headers.get("content-type") || "application/pdf";
+                      const arrayBuffer = await fileRes.arrayBuffer();
+                      const base64 = Buffer.from(arrayBuffer).toString("base64");
+                      if (base64.length > 100) {
+                        documents[idx].fileData = base64;
+                        documents[idx].fileMimeType = ct;
+                        console.log(`[DigiLocker] Downloaded file doc ${idx}: ${doc.name} (${ct}, ${base64.length} chars)`);
+                      } else {
+                        console.log(`[DigiLocker] File too small doc ${idx} (${doc.name}): ${base64.length} chars`);
+                      }
                     } else {
-                      console.log(`[DigiLocker] File too small doc ${idx} (${doc.name}): ${base64.length} chars`);
+                      console.log(`[DigiLocker] File failed doc ${idx} (${doc.name}): ${fileRes.status}`);
                     }
-                  } else {
-                    console.log(`[DigiLocker] File failed doc ${idx} (${doc.name}): ${fileRes.status}`);
-                  }
-                })(),
-              ]);
-              if (xmlResult.status === "rejected") console.log(`[DigiLocker] XML error doc ${idx}:`, xmlResult.reason);
-              if (fileResult.status === "rejected") console.log(`[DigiLocker] File error doc ${idx}:`, fileResult.reason);
-            }),
-          );
+                  })(),
+                ]);
+                if (xmlResult.status === "rejected") console.log(`[DigiLocker] XML error doc ${idx}:`, xmlResult.reason);
+                if (fileResult.status === "rejected") console.log(`[DigiLocker] File error doc ${idx}:`, fileResult.reason);
+              }),
+            );
+            console.log(`[DigiLocker] Batch ${batchStart / BATCH_SIZE + 1} done (docs ${batchStart}-${Math.min(batchStart + BATCH_SIZE - 1, documents.length - 1)})`);
+          }
           const withCert = documents.filter(d => d.certificateData).length;
           const withFile = documents.filter(d => d.fileData).length;
           console.log(`[DigiLocker] Certificate data: ${withCert}/${documents.length}, Files: ${withFile}/${documents.length}`);
@@ -441,6 +449,9 @@ export async function GET(request: NextRequest) {
       drivingLicence: user.drivingLicence || "",
       preferredUsername: user.preferredUsername || "",
       documents,
+      // Save access token so admin can re-fetch missing files later
+      dlAccessToken: accessToken,
+      dlTokenSavedAt: new Date(),
       rawTokenResponse,
       rawUserResponse,
       rawDocumentsResponse,
