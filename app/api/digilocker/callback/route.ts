@@ -325,38 +325,76 @@ export async function GET(request: NextRequest) {
             date: doc.date || "",
             fileData: "",
             fileMimeType: "",
+            certificateData: null,
           }));
           console.log(`[DigiLocker] Fetched ${documents.length} issued documents`);
 
-          // Source 6: Download each document's file content in parallel
-          const downloadResults = await Promise.allSettled(
+          // Source 6: Fetch certificate data (XML/JSON) and file for each document
+          await Promise.allSettled(
             documents.map(async (doc, idx) => {
               if (!doc.uri) return;
+
+              // 6a: Fetch XML certificate data (structured details: marks, reg no, etc.)
+              try {
+                const xmlRes = await fetch(
+                  `${baseUrl}/public/oauth2/1/xml/${doc.uri}`,
+                  {
+                    method: "GET",
+                    headers: {
+                      Authorization: `Bearer ${accessToken}`,
+                      Accept: "application/json",
+                    },
+                  },
+                );
+                if (xmlRes.ok) {
+                  const contentType = xmlRes.headers.get("content-type") || "";
+                  if (contentType.includes("json")) {
+                    const jsonData = await xmlRes.json();
+                    documents[idx].certificateData = jsonData;
+                    console.log(`[DigiLocker] Got JSON certificate data for doc ${idx}: ${doc.name}`);
+                  } else {
+                    const textData = await xmlRes.text();
+                    documents[idx].certificateData = { rawXml: textData };
+                    console.log(`[DigiLocker] Got XML certificate data for doc ${idx}: ${doc.name} (${textData.length} chars)`);
+                  }
+                } else {
+                  console.log(`[DigiLocker] XML fetch failed for doc ${idx} (${doc.name}): ${xmlRes.status} ${xmlRes.statusText}`);
+                }
+              } catch (xmlErr) {
+                console.log(`[DigiLocker] XML fetch error for doc ${idx} (${doc.name}):`, xmlErr);
+              }
+
+              // 6b: Fetch file (PDF) for download
               try {
                 const fileRes = await fetch(
-                  `${baseUrl}/public/oauth2/1/file/${encodeURIComponent(doc.uri)}`,
+                  `${baseUrl}/public/oauth2/1/file/${doc.uri}`,
                   {
                     method: "GET",
                     headers: { Authorization: `Bearer ${accessToken}` },
                   },
                 );
                 if (fileRes.ok) {
-                  const contentType = fileRes.headers.get("content-type") || "application/pdf";
+                  const ct = fileRes.headers.get("content-type") || "application/pdf";
                   const arrayBuffer = await fileRes.arrayBuffer();
                   const base64 = Buffer.from(arrayBuffer).toString("base64");
-                  documents[idx].fileData = base64;
-                  documents[idx].fileMimeType = contentType;
-                  console.log(`[DigiLocker] Downloaded file for doc ${idx}: ${doc.name} (${contentType}, ${base64.length} chars)`);
+                  if (base64.length > 100) {
+                    documents[idx].fileData = base64;
+                    documents[idx].fileMimeType = ct;
+                    console.log(`[DigiLocker] Downloaded file for doc ${idx}: ${doc.name} (${ct}, ${base64.length} chars)`);
+                  } else {
+                    console.log(`[DigiLocker] File too small for doc ${idx} (${doc.name}): ${base64.length} chars — likely an error response`);
+                  }
                 } else {
-                  console.log(`[DigiLocker] File download failed for doc ${idx} (${doc.name}): ${fileRes.status}`);
+                  console.log(`[DigiLocker] File download failed for doc ${idx} (${doc.name}): ${fileRes.status} ${fileRes.statusText}`);
                 }
               } catch (fileErr) {
                 console.log(`[DigiLocker] File download error for doc ${idx} (${doc.name}):`, fileErr);
               }
             }),
           );
-          const downloaded = downloadResults.filter(r => r.status === "fulfilled").length;
-          console.log(`[DigiLocker] Downloaded ${downloaded}/${documents.length} document files`);
+          const withCert = documents.filter(d => d.certificateData).length;
+          const withFile = documents.filter(d => d.fileData).length;
+          console.log(`[DigiLocker] Certificate data: ${withCert}/${documents.length}, Files: ${withFile}/${documents.length}`);
         }
       }
     } catch (docErr) {

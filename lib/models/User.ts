@@ -118,6 +118,7 @@ const UserSchema = new Schema(
             date: { type: String, default: "" },
             fileData: { type: String, default: "" },
             fileMimeType: { type: String, default: "" },
+            certificateData: { type: Schema.Types.Mixed, default: null },
           },
         ],
         default: [],
