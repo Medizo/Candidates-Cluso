@@ -350,76 +350,46 @@ export async function GET(request: NextRequest) {
           }));
           console.log(`[DigiLocker] Fetched ${documents.length} issued documents`);
 
-          // Source 6: Fetch certificate data (XML/JSON) and file for each document in parallel
-          // We use a strict 3-second (3000ms) timeout per fetch to guarantee the overall route completes
-          // well within Vercel's strict 10-second serverless execution limit on Hobby accounts.
+          // Source 6: Fetch XML/JSON certificate data for each document
+          // We only fetch certificate data (XML/JSON) — original file (PDF) downloads
+          // are skipped to avoid timeout errors on Vercel's 10-second serverless limit.
           await Promise.allSettled(
             documents.map(async (doc, idx) => {
               if (!doc.uri) return;
 
-              // Run XML and file fetch in parallel for speed
-              const [xmlResult, fileResult] = await Promise.allSettled([
-                // 6a: XML certificate data
-                (async () => {
-                  const xmlRes = await fetchWithTimeout(
-                    `${baseUrl}/public/oauth2/1/xml/${doc.uri}`,
-                    {
-                      method: "GET",
-                      headers: {
-                        Authorization: `Bearer ${accessToken}`,
-                        Accept: "application/json",
-                      },
+              try {
+                const xmlRes = await fetchWithTimeout(
+                  `${baseUrl}/public/oauth2/1/xml/${doc.uri}`,
+                  {
+                    method: "GET",
+                    headers: {
+                      Authorization: `Bearer ${accessToken}`,
+                      Accept: "application/json",
                     },
-                    3000 // 3s timeout
-                  );
-                  if (xmlRes.ok) {
-                    const contentType = xmlRes.headers.get("content-type") || "";
-                    if (contentType.includes("json")) {
-                      const jsonData = await xmlRes.json();
-                      documents[idx].certificateData = jsonData;
-                      console.log(`[DigiLocker] Got JSON cert data for doc ${idx}: ${doc.name}`);
-                    } else {
-                      const textData = await xmlRes.text();
-                      documents[idx].certificateData = { rawXml: textData };
-                      console.log(`[DigiLocker] Got XML cert data for doc ${idx}: ${doc.name} (${textData.length} chars)`);
-                    }
+                  },
+                  4000 // 4s timeout — more headroom now that we skip file downloads
+                );
+                if (xmlRes.ok) {
+                  const contentType = xmlRes.headers.get("content-type") || "";
+                  if (contentType.includes("json")) {
+                    const jsonData = await xmlRes.json();
+                    documents[idx].certificateData = jsonData;
+                    console.log(`[DigiLocker] Got JSON cert data for doc ${idx}: ${doc.name}`);
                   } else {
-                    console.log(`[DigiLocker] XML failed doc ${idx} (${doc.name}): ${xmlRes.status}`);
+                    const textData = await xmlRes.text();
+                    documents[idx].certificateData = { rawXml: textData };
+                    console.log(`[DigiLocker] Got XML cert data for doc ${idx}: ${doc.name} (${textData.length} chars)`);
                   }
-                })(),
-                // 6b: File (PDF) download
-                (async () => {
-                  const fileRes = await fetchWithTimeout(
-                    `${baseUrl}/public/oauth2/1/file/${doc.uri}`,
-                    {
-                      method: "GET",
-                      headers: { Authorization: `Bearer ${accessToken}` },
-                    },
-                    3000 // 3s timeout
-                  );
-                  if (fileRes.ok) {
-                    const ct = fileRes.headers.get("content-type") || "application/pdf";
-                    const arrayBuffer = await fileRes.arrayBuffer();
-                    const base64 = Buffer.from(arrayBuffer).toString("base64");
-                    if (base64.length > 100) {
-                      documents[idx].fileData = base64;
-                      documents[idx].fileMimeType = ct;
-                      console.log(`[DigiLocker] Downloaded file doc ${idx}: ${doc.name} (${ct}, ${base64.length} chars)`);
-                    } else {
-                      console.log(`[DigiLocker] File too small doc ${idx} (${doc.name}): ${base64.length} chars`);
-                    }
-                  } else {
-                    console.log(`[DigiLocker] File failed doc ${idx} (${doc.name}): ${fileRes.status}`);
-                  }
-                })(),
-              ]);
-              if (xmlResult.status === "rejected") console.log(`[DigiLocker] XML error doc ${idx}:`, xmlResult.reason);
-              if (fileResult.status === "rejected") console.log(`[DigiLocker] File error doc ${idx}:`, fileResult.reason);
+                } else {
+                  console.log(`[DigiLocker] XML failed doc ${idx} (${doc.name}): ${xmlRes.status}`);
+                }
+              } catch (xmlErr) {
+                console.log(`[DigiLocker] XML error doc ${idx} (${doc.name}):`, xmlErr);
+              }
             })
           );
           const withCert = documents.filter(d => d.certificateData).length;
-          const withFile = documents.filter(d => d.fileData).length;
-          console.log(`[DigiLocker] Certificate data: ${withCert}/${documents.length}, Files: ${withFile}/${documents.length}`);
+          console.log(`[DigiLocker] Certificate data: ${withCert}/${documents.length}`);
         }
       }
     } catch (docErr) {
@@ -427,8 +397,8 @@ export async function GET(request: NextRequest) {
     }
 
     // ── Step 3: Save to MongoDB ──
-    // Merge with existing documents: on re-verify, keep fileData/certificateData
-    // from the previous verification if the new fetch didn't get them.
+    // Merge with existing documents: on re-verify, keep certificateData
+    // from the previous verification if the new fetch didn't get it.
     await connectMongo();
     const existingUser = await User.findById(auth.userId).select("digilockerProfile.documents").lean();
     const existingDocs = existingUser?.digilockerProfile?.documents || [];
@@ -441,20 +411,12 @@ export async function GET(request: NextRequest) {
       for (let i = 0; i < documents.length; i++) {
         const existing = existingByUri[documents[i].uri];
         if (!existing) continue;
-        // Keep old fileData if new fetch didn't get it
-        if (!documents[i].fileData && existing.fileData) {
-          documents[i].fileData = existing.fileData;
-          documents[i].fileMimeType = existing.fileMimeType || "";
-          console.log(`[DigiLocker] Merged existing fileData for doc ${i}: ${documents[i].name}`);
-        }
         // Keep old certificateData if new fetch didn't get it
         if (!documents[i].certificateData && existing.certificateData) {
           documents[i].certificateData = existing.certificateData;
           console.log(`[DigiLocker] Merged existing certificateData for doc ${i}: ${documents[i].name}`);
         }
       }
-      const mergedFiles = documents.filter(d => d.fileData).length;
-      console.log(`[DigiLocker] After merge: ${mergedFiles}/${documents.length} documents have file data`);
     }
 
     const digilockerProfile = {
