@@ -162,7 +162,7 @@ export default function CandidateProfilePage() {
         }
         setProfile(EMPTY_PROFILE);
         setSkillsInput("");
-        setProfileMessage("Could not load profile details.");
+        setProfileMessage("");
       } finally {
         if (active) {
           setProfileLoading(false);

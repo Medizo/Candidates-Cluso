@@ -90,6 +90,13 @@ const UserSchema = new Schema(
         ],
         default: [],
       },
+      resume: {
+        fileName: { type: String, default: "" },
+        fileType: { type: String, default: "" },
+        fileSize: { type: Number, default: 0 },
+        dataUrl: { type: String, default: "" },
+        uploadedAt: { type: Date, default: null },
+      },
     },
     digilockerProfile: {
       verified: { type: Boolean, default: false },

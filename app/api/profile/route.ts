@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { connectMongo } from "@/lib/mongodb";
-import Candidate from "@/lib/models/Candidate";
+import User from "@/lib/models/User";
 import { getCandidateAuthFromRequest } from "@/lib/auth";
 
 const employmentSchema = z.object({
@@ -93,13 +93,13 @@ export async function GET(req: NextRequest) {
   }
 
   await connectMongo();
-  const candidate = await Candidate.findById(auth.userId).select("candidateProfile").lean();
-  if (!candidate) {
+  const user = await User.findById(auth.userId).select("candidateProfile").lean();
+  if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   return NextResponse.json({
-    profile: normalizeProfile(candidate.candidateProfile),
+    profile: normalizeProfile(user.candidateProfile),
   });
 }
 
@@ -124,15 +124,15 @@ export async function PUT(req: NextRequest) {
   const normalizedProfile = normalizeProfile(parsed.data);
 
   await connectMongo();
-  const candidate = await Candidate.findById(auth.userId).select("candidateProfile");
-  if (!candidate) {
+  const user = await User.findById(auth.userId).select("candidateProfile");
+  if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   // Preserve existing resume if not explicitly provided in the request body
   const finalProfile = { ...normalizedProfile };
-  if ((body as Record<string, unknown>).resume === undefined && candidate.candidateProfile?.resume) {
-    const existingResume = candidate.candidateProfile.resume;
+  if ((body as Record<string, unknown>).resume === undefined && user.candidateProfile?.resume) {
+    const existingResume = user.candidateProfile.resume;
     if (existingResume && (existingResume.dataUrl || existingResume.fileName)) {
       finalProfile.resume = {
         fileName: existingResume.fileName || "",
@@ -146,7 +146,7 @@ export async function PUT(req: NextRequest) {
     }
   }
 
-  await Candidate.updateOne(
+  await User.updateOne(
     { _id: auth.userId },
     {
       $set: {

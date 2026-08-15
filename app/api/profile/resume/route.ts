@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { connectMongo } from "@/lib/mongodb";
-import Candidate from "@/lib/models/Candidate";
+import User from "@/lib/models/User";
 import { getCandidateAuthFromRequest } from "@/lib/auth";
 
 const uploadResumeSchema = z.object({
@@ -18,13 +18,13 @@ export async function GET(req: NextRequest) {
   }
 
   await connectMongo();
-  const candidate = await Candidate.findById(auth.userId).select("candidateProfile.resume").lean();
-  if (!candidate) {
-    return NextResponse.json({ error: "Candidate not found." }, { status: 404 });
+  const user = await User.findById(auth.userId).select("candidateProfile.resume").lean();
+  if (!user) {
+    return NextResponse.json({ error: "User not found." }, { status: 404 });
   }
 
   return NextResponse.json({
-    resume: candidate.candidateProfile?.resume || null,
+    resume: user.candidateProfile?.resume || null,
   });
 }
 
@@ -82,12 +82,12 @@ async function handleUpload(req: NextRequest) {
   };
 
   await connectMongo();
-  const candidate = await Candidate.findById(auth.userId);
-  if (!candidate) {
-    return NextResponse.json({ error: "Candidate not found." }, { status: 404 });
+  const user = await User.findById(auth.userId);
+  if (!user) {
+    return NextResponse.json({ error: "User not found." }, { status: 404 });
   }
 
-  await Candidate.updateOne(
+  await User.updateOne(
     { _id: auth.userId },
     {
       $set: {
@@ -112,12 +112,12 @@ export async function DELETE(req: NextRequest) {
   }
 
   await connectMongo();
-  const candidate = await Candidate.findById(auth.userId);
-  if (!candidate) {
-    return NextResponse.json({ error: "Candidate not found." }, { status: 404 });
+  const user = await User.findById(auth.userId);
+  if (!user) {
+    return NextResponse.json({ error: "User not found." }, { status: 404 });
   }
 
-  await Candidate.updateOne(
+  await User.updateOne(
     { _id: auth.userId },
     {
       $set: {
