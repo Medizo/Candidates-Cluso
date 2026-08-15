@@ -46,10 +46,21 @@ export type CandidateEducationRecord = {
   grade: string;
 };
 
+export type CandidateResume = {
+  fileName: string;
+  fileSize: number;
+  fileMimeType: string;
+  fileType?: string;
+  fileData?: string;
+  dataUrl?: string;
+  uploadedAt: string | Date;
+};
+
 export type CandidateProfile = {
   keySkills: string[];
   employment: CandidateEmploymentRecord[];
   education: CandidateEducationRecord[];
+  resume?: CandidateResume | null;
 };
 
 export type MeResponse = {

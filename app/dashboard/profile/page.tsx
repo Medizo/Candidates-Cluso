@@ -14,6 +14,11 @@ import {
   UserRound,
   Eye,
   EyeOff,
+  FileText,
+  Upload,
+  Trash2,
+  Download,
+  ExternalLink,
 } from "lucide-react";
 import { PortalFrame } from "@/components/dashboard/PortalFrame";
 import { ProfileEditDrawer } from "@/components/dashboard/ProfileEditDrawer";
@@ -74,6 +79,7 @@ type DrawerSection =
 
 const QUICK_LINKS = [
   { id: "digilocker", label: "DigiLocker", icon: ShieldCheck },
+  { id: "resume", label: "Resume / CV", icon: FileText },
   { id: "password", label: "Password", icon: KeyRound },
   { id: "skills", label: "Key Skills", icon: UserRound },
   { id: "employment", label: "Employment", icon: BriefcaseBusiness },
@@ -113,6 +119,12 @@ export default function CandidateProfilePage() {
   const [profileMessage, setProfileMessage] = useState("");
   const [profileLoading, setProfileLoading] = useState(true);
   const [profileSaving, setProfileSaving] = useState(false);
+
+  /* resume state */
+  const [resumeUploading, setResumeUploading] = useState(false);
+  const [resumeDeleting, setResumeDeleting] = useState(false);
+  const [resumeMessage, setResumeMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const resumeFileInputRef = useRef<HTMLInputElement>(null);
 
   /* drawer state */
   const [drawerSection, setDrawerSection] = useState<DrawerSection>(null);
@@ -529,6 +541,139 @@ export default function CandidateProfilePage() {
     return [city, state, country].filter(Boolean).join(", ");
   }
 
+  function formatFileSize(bytes: number) {
+    if (!bytes || bytes === 0) return "0 KB";
+    if (bytes < 1024 * 1024) {
+      return `${(bytes / 1024).toFixed(1)} KB`;
+    }
+    return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+  }
+
+  const handleResumeFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    await uploadResumeFile(file);
+    if (resumeFileInputRef.current) resumeFileInputRef.current.value = "";
+  };
+
+  const uploadResumeFile = async (file: File) => {
+    setResumeMessage(null);
+    if (file.size > 10 * 1024 * 1024) {
+      setResumeMessage({ type: "error", text: "File size exceeds 10MB limit. Please upload a smaller file." });
+      return;
+    }
+
+    const isAllowed =
+      file.type.includes("pdf") ||
+      file.type.includes("word") ||
+      file.type.includes("document") ||
+      file.type.includes("msword") ||
+      file.type.includes("image") ||
+      /\.(pdf|docx?|txt|rtf|png|jpe?g)$/i.test(file.name);
+
+    if (!isAllowed) {
+      setResumeMessage({ type: "error", text: "Unsupported format. Please upload PDF, DOC, DOCX, or Image." });
+      return;
+    }
+
+    setResumeUploading(true);
+    try {
+      const reader = new FileReader();
+      reader.onload = async (event) => {
+        const dataUrl = event.target?.result as string;
+        if (!dataUrl) {
+          setResumeMessage({ type: "error", text: "Failed to read file." });
+          setResumeUploading(false);
+          return;
+        }
+
+        const res = await fetch("/api/profile/resume", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            fileName: file.name,
+            fileType: file.type || "application/pdf",
+            fileSize: file.size,
+            dataUrl,
+          }),
+        });
+
+        const data = await res.json();
+        if (!res.ok) {
+          setResumeMessage({ type: "error", text: data.error || "Failed to upload resume." });
+        } else {
+          setProfile((prev) => ({
+            ...prev,
+            resume: data.resume,
+          }));
+          setResumeMessage({ type: "success", text: "Resume uploaded successfully!" });
+        }
+        setResumeUploading(false);
+      };
+      reader.onerror = () => {
+        setResumeMessage({ type: "error", text: "Error reading file." });
+        setResumeUploading(false);
+      };
+      reader.readAsDataURL(file);
+    } catch {
+      setResumeMessage({ type: "error", text: "Upload failed. Please check your network." });
+      setResumeUploading(false);
+    }
+  };
+
+  const handleResumeDelete = async () => {
+    if (!window.confirm("Are you sure you want to remove your uploaded resume?")) return;
+    setResumeDeleting(true);
+    setResumeMessage(null);
+    try {
+      const res = await fetch("/api/profile/resume", { method: "DELETE" });
+      const data = await res.json();
+      if (!res.ok) {
+        setResumeMessage({ type: "error", text: data.error || "Failed to remove resume." });
+      } else {
+        setProfile((prev) => ({
+          ...prev,
+          resume: null,
+        }));
+        setResumeMessage({ type: "success", text: "Resume removed." });
+      }
+    } catch {
+      setResumeMessage({ type: "error", text: "Failed to remove resume." });
+    } finally {
+      setResumeDeleting(false);
+    }
+  };
+
+  const handleResumeDownload = () => {
+    if (!profile.resume?.dataUrl) return;
+    const a = document.createElement("a");
+    a.href = profile.resume.dataUrl;
+    a.download = profile.resume.fileName || "resume.pdf";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  };
+
+  const handleResumeView = () => {
+    if (!profile.resume?.dataUrl) return;
+    try {
+      const parts = profile.resume.dataUrl.split(",");
+      const mimeMatch = parts[0].match(/:(.*?);/);
+      const mime = mimeMatch ? mimeMatch[1] : profile.resume.fileType || "application/pdf";
+      const bstr = atob(parts[1]);
+      let n = bstr.length;
+      const u8arr = new Uint8Array(n);
+      while (n--) {
+        u8arr[n] = bstr.charCodeAt(n);
+      }
+      const blob = new Blob([u8arr], { type: mime });
+      const blobUrl = URL.createObjectURL(blob);
+      window.open(blobUrl, "_blank");
+    } catch {
+      window.open(profile.resume.dataUrl, "_blank");
+    }
+  };
+
   /* ── render ── */
 
   return (
@@ -620,6 +765,191 @@ export default function CandidateProfilePage() {
                   </a>
                 </div>
               )
+            )}
+          </section>
+
+          {/* Resume / CV Section */}
+          <section id="resume-section" className="profile-section-card">
+            <div className="profile-section-header">
+              <h3 className="profile-section-title">
+                <FileText size={18} />
+                Resume / CV
+                {profile.resume && (profile.resume.fileName || profile.resume.dataUrl) ? (
+                  <span className="digilocker-verified-badge">✓ Uploaded</span>
+                ) : (
+                  <span style={{ fontSize: "0.72rem", fontWeight: 600, color: "#d97706", background: "#fffbeb", padding: "0.2rem 0.6rem", borderRadius: "999px", border: "1px solid #fde68a" }}>
+                    Pending
+                  </span>
+                )}
+              </h3>
+              <div className="profile-section-actions">
+                <input
+                  ref={resumeFileInputRef}
+                  type="file"
+                  accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                  onChange={handleResumeFileChange}
+                  style={{ display: "none" }}
+                />
+                <button
+                  type="button"
+                  className="profile-action-btn"
+                  onClick={() => resumeFileInputRef.current?.click()}
+                  disabled={resumeUploading}
+                >
+                  <Upload size={14} />
+                  {profile.resume && (profile.resume.fileName || profile.resume.dataUrl) ? "Replace" : "Upload"}
+                </button>
+              </div>
+            </div>
+
+            {resumeMessage && (
+              <div
+                style={{
+                  padding: "0.6rem 0.85rem",
+                  borderRadius: "8px",
+                  fontSize: "0.84rem",
+                  fontWeight: 500,
+                  marginBottom: "0.75rem",
+                  background: resumeMessage.type === "success" ? "#f0fdf4" : "#fef2f2",
+                  border: `1px solid ${resumeMessage.type === "success" ? "#bbf7d0" : "#fecaca"}`,
+                  color: resumeMessage.type === "success" ? "#166534" : "#991b1b",
+                }}
+              >
+                {resumeMessage.text}
+              </div>
+            )}
+
+            {profile.resume && (profile.resume.fileName || profile.resume.dataUrl) ? (
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  padding: "0.85rem 1rem",
+                  borderRadius: "10px",
+                  background: "var(--bg-color, #f8fafc)",
+                  border: "1px solid var(--border-color, #e2e8f0)",
+                  flexWrap: "wrap",
+                  gap: "0.75rem",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", minWidth: 0 }}>
+                  <div
+                    style={{
+                      width: "40px",
+                      height: "40px",
+                      borderRadius: "8px",
+                      background: "linear-gradient(135deg, #3b82f6, #6366f1)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      color: "#fff",
+                      flexShrink: 0,
+                    }}
+                  >
+                    <FileText size={20} />
+                  </div>
+                  <div style={{ minWidth: 0 }}>
+                    <p
+                      style={{
+                        margin: 0,
+                        fontWeight: 700,
+                        fontSize: "0.92rem",
+                        color: "var(--ink)",
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        maxWidth: "280px",
+                      }}
+                    >
+                      {profile.resume.fileName || "Candidate_Resume.pdf"}
+                    </p>
+                    <p style={{ margin: 0, fontSize: "0.78rem", color: "var(--ink-soft)" }}>
+                      {formatFileSize(profile.resume.fileSize)}
+                      {profile.resume.uploadedAt
+                        ? ` · Uploaded on ${new Date(profile.resume.uploadedAt).toLocaleDateString()}`
+                        : ""}
+                    </p>
+                  </div>
+                </div>
+
+                <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", flexWrap: "wrap" }}>
+                  <button
+                    type="button"
+                    onClick={handleResumeView}
+                    className="profile-entry-edit-btn"
+                    title="View Resume in new tab"
+                    style={{ display: "inline-flex", alignItems: "center", gap: "0.3rem", fontSize: "0.8rem", padding: "0.35rem 0.65rem", height: "auto" }}
+                  >
+                    <ExternalLink size={13} /> View
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleResumeDownload}
+                    className="profile-entry-edit-btn"
+                    title="Download Resume"
+                    style={{ display: "inline-flex", alignItems: "center", gap: "0.3rem", fontSize: "0.8rem", padding: "0.35rem 0.65rem", height: "auto" }}
+                  >
+                    <Download size={13} /> Download
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleResumeDelete}
+                    disabled={resumeDeleting}
+                    className="profile-entry-edit-btn"
+                    title="Remove Resume"
+                    style={{ color: "#dc2626", display: "inline-flex", alignItems: "center", gap: "0.3rem", fontSize: "0.8rem", padding: "0.35rem 0.65rem", height: "auto" }}
+                  >
+                    <Trash2 size={13} /> {resumeDeleting ? "Removing..." : "Remove"}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div
+                onClick={() => resumeFileInputRef.current?.click()}
+                style={{
+                  border: "2px dashed var(--border-color, #cbd5e1)",
+                  borderRadius: "12px",
+                  padding: "1.75rem 1.25rem",
+                  textAlign: "center",
+                  cursor: "pointer",
+                  background: "var(--bg-color, #f8fafc)",
+                  transition: "all 0.2s ease",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  gap: "0.5rem",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = "var(--brand, #3b82f6)";
+                  e.currentTarget.style.background = "var(--brand-light, rgba(59,130,246,0.05))";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = "var(--border-color, #cbd5e1)";
+                  e.currentTarget.style.background = "var(--bg-color, #f8fafc)";
+                }}
+              >
+                <div
+                  style={{
+                    width: "44px",
+                    height: "44px",
+                    borderRadius: "50%",
+                    background: "var(--brand-light, rgba(59,130,246,0.1))",
+                    color: "var(--brand, #3b82f6)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <Upload size={22} />
+                </div>
+                <p style={{ margin: 0, fontWeight: 700, fontSize: "0.92rem", color: "var(--ink)" }}>
+                  {resumeUploading ? "Uploading Resume..." : "Click to upload your Resume / CV"}
+                </p>
+                <p style={{ margin: 0, fontSize: "0.78rem", color: "var(--ink-soft)" }}>
+                  Supported formats: PDF, DOC, DOCX, JPG, PNG (Max 10MB)
+                </p>
+              </div>
             )}
           </section>
 
