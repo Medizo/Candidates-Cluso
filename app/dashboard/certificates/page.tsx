@@ -26,6 +26,10 @@ import {
   Copy,
   ExternalLink,
   CheckCircle2,
+  Send,
+  GraduationCap,
+  Briefcase,
+  BookOpen,
 } from "lucide-react";
 
 // Custom social media icons (lucide-react doesn't include brand icons)
@@ -77,7 +81,68 @@ const CERT_TYPES = [
   { key: "appreciation", label: "Certificate of Appreciation", icon: Heart, color: "#ec4899", desc: "Express gratitude for dedicated service and efforts" },
   { key: "achievement", label: "Certificate of Achievement", icon: Trophy, color: "#8b5cf6", desc: "Acknowledge a specific milestone or accomplishment" },
   { key: "relieving", label: "Relieving Letter", icon: FileText, color: "#3b82f6", desc: "Issue an official relieving letter for departing employees" },
+  { key: "loi_employment", label: "Letter of Intent (Employment)", icon: Send, color: "#0284c7", desc: "Official Letter of Intent (LOI) for employment" },
+  { key: "loi_internship", label: "Letter of Intent (Internship)", icon: GraduationCap, color: "#6366f1", desc: "Official Letter of Intent (LOI) for internship program" },
+  { key: "offer_employment", label: "Offer Letter (Employment)", icon: Briefcase, color: "#059669", desc: "Official Employment Offer Letter" },
+  { key: "offer_internship", label: "Offer Letter (Internship)", icon: BookOpen, color: "#d97706", desc: "Official Internship Offer Letter" },
 ];
+
+const LETTER_TYPES = ["relieving", "loi_employment", "loi_internship", "offer_employment", "offer_internship"];
+function isLetterType(type?: string) {
+  return !!type && LETTER_TYPES.includes(type);
+}
+
+function getLetterRefPrefix(type?: string) {
+  switch (type) {
+    case "relieving":
+      return "CI/HR/RL";
+    case "loi_employment":
+      return "CI/HR/LOI-EMP";
+    case "loi_internship":
+      return "CI/HR/LOI-INT";
+    case "offer_employment":
+      return "CI/HR/OFF-EMP";
+    case "offer_internship":
+      return "CI/HR/OFF-INT";
+    default:
+      return "CI/HR/DOC";
+  }
+}
+
+function getLetterSubject(type?: string, recipientDesignation?: string) {
+  const desig = recipientDesignation ? ` — ${recipientDesignation}` : "";
+  switch (type) {
+    case "relieving":
+      return "Subject: Relieving Letter & Experience Certificate";
+    case "loi_employment":
+      return `Subject: Letter of Intent (Employment)${desig}`;
+    case "loi_internship":
+      return `Subject: Letter of Intent — Internship Program${desig}`;
+    case "offer_employment":
+      return `Subject: Offer of Employment${desig}`;
+    case "offer_internship":
+      return `Subject: Offer of Internship${desig}`;
+    default:
+      return "Subject: Official Document";
+  }
+}
+
+function getLetterFilenameSuffix(type?: string) {
+  switch (type) {
+    case "relieving":
+      return "Relieving_Letter";
+    case "loi_employment":
+      return "Letter_of_Intent_Employment";
+    case "loi_internship":
+      return "Letter_of_Intent_Internship";
+    case "offer_employment":
+      return "Offer_Letter_Employment";
+    case "offer_internship":
+      return "Offer_Letter_Internship";
+    default:
+      return "Official_Document";
+  }
+}
 
 const COMPLETION_CATEGORIES = [
   { key: "internship", label: "Internship Completion", desc: "For interns who completed their internship program" },
@@ -107,6 +172,10 @@ function getCertTitle(type: string, category?: string) {
     appreciation: "Certificate of Appreciation",
     achievement: "Certificate of Achievement",
     relieving: "Relieving Letter",
+    loi_employment: "Letter of Intent (Employment)",
+    loi_internship: "Letter of Intent (Internship)",
+    offer_employment: "Offer Letter (Employment)",
+    offer_internship: "Offer Letter (Internship)",
   };
   return titles[type] || "Certificate";
 }
@@ -181,6 +250,22 @@ function generateCertBody({
     return `This is to certify that <strong>${name}</strong>, serving as ${aOrAn(designation)} <strong>${designation}</strong> at ${company}, has achieved a significant milestone that reflects their talent, perseverance, and dedication.<br/><br/>This achievement was accomplished under the mentorship of <strong>${guide}</strong>. During this period, ${name} demonstrated ${qualities} and set a commendable example for peers.<br/><br/>The management congratulates ${name} on this accomplishment and wishes them continued success in their professional journey.`;
   }
 
+  if (type === "loi_employment") {
+    return `We are pleased to issue this <strong>Letter of Intent</strong> to express our formal intention to offer you the position of <strong>${designation}</strong> with <strong>${company}</strong>, effective from your anticipated joining date of <strong>${fromDate}</strong>.<br/><br/>Based on our discussions and assessment of your qualifications, skills, and background, we believe your experience and capabilities make you an excellent fit for our organization. In this position, you will be working under the leadership of <strong>${guide}</strong>.<br/><br/>This Letter of Intent confirms our mutual understanding and commitment prior to final onboarding. A formal Appointment Letter outlining your detailed compensation structure, company benefits, and standard service conditions will be issued following your acceptance of this letter. ${remarks ? `Special Notes & Terms: ${remarks}.` : `We trust that you will contribute positively towards our company goals with integrity and dedication.`}<br/><br/>Please review this letter, sign the duplicate copy to confirm your acceptance, and return it to our HR department to initiate the formal documentation.`;
+  }
+
+  if (type === "loi_internship") {
+    return `We are pleased to issue this <strong>Letter of Intent</strong> to confirm our intention to offer you an internship position as <strong>${designation}</strong> with <strong>${company}</strong> for the duration from <strong>${fromDate}</strong> to <strong>${toDate}</strong>.<br/><br/>We were impressed by your academic background, enthusiasm, and potential during our evaluation. During your internship period, you will be mentored by <strong>${guide}</strong>, gaining valuable hands-on experience, real-world project exposure, and collaborative skills in a fast-paced environment.<br/><br/>This Letter of Intent acknowledges our commitment to your professional learning and development. An Internship Agreement outlining program guidelines, working schedule, and stipendiary details will be issued upon receipt of your formal acceptance. ${remarks ? `Program Details: ${remarks}.` : `We look forward to your proactive contributions and dedication during the program.`}<br/><br/>Please confirm your acceptance of this letter by returning a signed copy to HR at your earliest convenience.`;
+  }
+
+  if (type === "offer_employment") {
+    return `On behalf of <strong>${company}</strong>, we are delighted to formally offer you employment for the position of <strong>${designation}</strong>. Your appointment will commence on <strong>${fromDate}</strong>, and you will report directly to <strong>${guide}</strong>.<br/><br/>We were thoroughly impressed by your credentials, professional achievements, and potential to contribute significantly to our ongoing expansion and operational success. We are confident that you will find your role both rewarding and professionally enriching.<br/><br/>Your employment will be governed by company policies, service rules, code of conduct, and confidentiality obligations. ${remarks ? `Terms of Offer & Compensation: ${remarks}.` : `Detailed compensation details, employment covenants, and benefits will be set forth in your comprehensive employment agreement.`}<br/><br/>Please sign and return the duplicate copy of this letter along with the requested onboarding documents to signify your acceptance of this offer. We warmly welcome you to the ${company} team and look forward to building a great future together.`;
+  }
+
+  if (type === "offer_internship") {
+    return `We are delighted to formally offer you an internship as <strong>${designation}</strong> with <strong>${company}</strong>. Your internship tenure will be from <strong>${fromDate}</strong> to <strong>${toDate}</strong> under the mentorship and supervision of <strong>${guide}</strong>.<br/><br/>This internship is designed to provide you with practical training, structured mentorship, and hands-on participation in live projects. You are expected to adhere to all workplace guidelines, professional standards, and confidentiality agreements applicable to company personnel.<br/><br/>${remarks ? `Stipend & Program Conditions: ${remarks}.` : `Stipend and performance review terms will be governed as per company internship policies.`} Upon successful completion of your internship tenure, you will be awarded an official Certificate of Completion.<br/><br/>Please confirm your acceptance of this internship offer by signing and returning this letter. We are excited to welcome you aboard and look forward to an inspiring and fruitful association with ${company}.`;
+  }
+
   return "";
 }
 
@@ -220,9 +305,11 @@ function renderCertificateHTML({
   const toDate = dateTo ? formatDateDisplay(dateTo) : "";
   const issuedDate = createdAt ? formatDateDisplay(createdAt) : formatDateDisplay(new Date().toISOString());
 
-  if (type === "relieving") {
-    const formattedDate = toDate || formatDateDisplay(new Date().toISOString());
-    const refId = recipientId ? `CI/HR/RL/${recipientId}` : `CI/HR/RL/${Math.floor(1000 + Math.random() * 9000)}`;
+  if (isLetterType(type)) {
+    const formattedDate = (type === "relieving") ? (toDate || formatDateDisplay(createdAt || new Date().toISOString())) : (createdAt ? formatDateDisplay(createdAt) : formatDateDisplay(new Date().toISOString()));
+    const refPrefix = getLetterRefPrefix(type);
+    const refId = recipientId ? `${refPrefix}/${recipientId}` : `${refPrefix}/${Math.floor(1000 + Math.random() * 9000)}`;
+    const subjectLine = getLetterSubject(type, recipientDesignation);
 
     if (template === "classic") {
       return `
@@ -255,7 +342,7 @@ function renderCertificateHTML({
             </div>
             <div style="text-align: center; margin-bottom: 28px;">
               <span style="font-size: 13px; font-weight: 700; color: #2a1f14; border-bottom: 1.5px solid #2a1f14; padding-bottom: 2px; text-transform: uppercase; letter-spacing: 0.5px;">
-                Subject: Relieving Letter & Experience Certificate
+                ${subjectLine}
               </span>
             </div>
             <div style="font-size: 13px; color: #2a1f14; margin-bottom: 16px;">Dear ${recipientName},</div>
@@ -319,7 +406,7 @@ function renderCertificateHTML({
             </div>
             <div style="text-align: center; margin-bottom: 24px;">
               <span style="font-size: 13px; font-weight: 800; color: #0f172a; border-bottom: 2px solid #3b82f6; padding-bottom: 3px; text-transform: uppercase; letter-spacing: 0.5px;">
-                Subject: Relieving Letter & Experience Certificate
+                ${subjectLine}
               </span>
             </div>
             <div style="font-size: 13px; color: #0f172a; font-weight: 600; margin-bottom: 16px;">Dear ${recipientName},</div>
@@ -386,7 +473,7 @@ function renderCertificateHTML({
             </div>
             <div style="text-align: center; margin-bottom: 24px;">
               <span style="font-size: 13px; font-weight: 700; color: #1e1b4b; border-bottom: 1.5px solid #c9a84c; padding-bottom: 3px; text-transform: uppercase; letter-spacing: 0.5px;">
-                Subject: Relieving Letter & Experience Certificate
+                ${subjectLine}
               </span>
             </div>
             <div style="font-size: 13px; color: #1e1b4b; margin-bottom: 16px;">Dear ${recipientName},</div>
@@ -651,7 +738,7 @@ function CertificatesContent() {
     const handleResize = () => {
       if (!previewContainerRef.current) return;
       const parentWidth = previewContainerRef.current.clientWidth;
-      const certWidth = previewCert.type === "relieving" ? 640 : 800;
+      const certWidth = isLetterType(previewCert.type) ? 640 : 800;
       if (parentWidth < certWidth) {
         setPreviewScale(parentWidth / certWidth);
       } else {
@@ -777,7 +864,7 @@ function CertificatesContent() {
 
           pdf.addImage(imgData, "JPEG", 0, 0, canvas.width, canvas.height);
           const filename = `${cert.recipientName.replace(/\s+/g, "_")}_${
-            cert.type === "relieving" ? "Relieving_Letter" : "Certificate"
+            isLetterType(cert.type) ? getLetterFilenameSuffix(cert.type) : "Certificate"
           }.pdf`;
           pdf.save(filename);
         } finally {
@@ -877,7 +964,7 @@ function CertificatesContent() {
 
         const imgData = canvas.toDataURL("image/jpeg", 0.95);
         const filename = `${cert.recipientName.replace(/\s+/g, "_")}_${
-          cert.type === "relieving" ? "Relieving_Letter" : "Certificate"
+          isLetterType(cert.type) ? getLetterFilenameSuffix(cert.type) : "Certificate"
         }.jpg`;
 
         const link = document.createElement("a");
@@ -1114,15 +1201,15 @@ function CertificatesContent() {
             left: "-9999px",
             zIndex: -9999,
             overflow: "visible",
-            width: downloadingCert.type === "relieving" ? "640px" : "800px",
-            height: downloadingCert.type === "relieving" ? "900px" : "600px",
+            width: isLetterType(downloadingCert.type) ? "640px" : "800px",
+            height: isLetterType(downloadingCert.type) ? "900px" : "600px",
           }}
         >
           <div
             id="certificate-download-target"
             style={{
-              width: downloadingCert.type === "relieving" ? "640px" : "800px",
-              height: downloadingCert.type === "relieving" ? "900px" : "600px",
+              width: isLetterType(downloadingCert.type) ? "640px" : "800px",
+              height: isLetterType(downloadingCert.type) ? "900px" : "600px",
             }}
             dangerouslySetInnerHTML={{
               __html: renderCertificateHTML(downloadingCert),
@@ -1185,15 +1272,15 @@ function CertificatesContent() {
                 ref={previewContainerRef}
                 className="w-full flex flex-col items-center justify-start"
                 style={{
-                  minHeight: previewCert.type === "relieving" ? `${900 * previewScale}px` : `${600 * previewScale}px`,
+                  minHeight: isLetterType(previewCert.type) ? `${900 * previewScale}px` : `${600 * previewScale}px`,
                 }}
               >
                 <div
                   style={{
                     transform: `scale(${previewScale})`,
                     transformOrigin: "top center",
-                    width: previewCert.type === "relieving" ? "640px" : "800px",
-                    height: previewCert.type === "relieving" ? "900px" : "600px",
+                    width: isLetterType(previewCert.type) ? "640px" : "800px",
+                    height: isLetterType(previewCert.type) ? "900px" : "600px",
                     boxShadow: "0 10px 30px -10px rgba(0, 0, 0, 0.15)",
                     borderRadius: previewCert.template === "modern" ? "16px" : "4px",
                     overflow: "hidden",
