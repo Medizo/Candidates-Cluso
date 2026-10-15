@@ -112,20 +112,30 @@ const DIGILOCKER_FIELD_MAP: Record<string, { label: string; resolve: (profile: a
         return `${year}-${month}-${day}`;
       }
 
-      // 3. Matches 8 consecutive digits (e.g. 25121995 or 19951225)
+      // 3. Matches 8 consecutive digits (e.g. 19082007 or 20070819)
       if (/^\d{8}$/.test(raw)) {
-        const part1 = raw.substring(0, 4);
-        const yearNum = parseInt(part1, 10);
-        if (yearNum >= 1900 && yearNum <= 2100) {
-          const year = part1;
-          const month = raw.substring(4, 6);
-          const day = raw.substring(6, 8);
-          return `${year}-${month}-${day}`;
-        } else {
-          const day = raw.substring(0, 2);
-          const month = raw.substring(2, 4);
-          const year = raw.substring(4, 8);
-          return `${year}-${month}-${day}`;
+        const yearEnd = parseInt(raw.substring(4, 8), 10);
+        const yearStart = parseInt(raw.substring(0, 4), 10);
+        if (yearEnd >= 1900 && yearEnd <= 2100) {
+          const val1 = parseInt(raw.substring(0, 2), 10);
+          const val2 = parseInt(raw.substring(2, 4), 10);
+          let day = val1;
+          let month = val2;
+          if (val1 <= 12 && val2 > 12) {
+            day = val2;
+            month = val1;
+          }
+          return `${yearEnd}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+        } else if (yearStart >= 1900 && yearStart <= 2100) {
+          const val1 = parseInt(raw.substring(4, 6), 10);
+          const val2 = parseInt(raw.substring(6, 8), 10);
+          let month = val1;
+          let day = val2;
+          if (val1 > 12 && val2 <= 12) {
+            day = val1;
+            month = val2;
+          }
+          return `${yearStart}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
         }
       }
 
